@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI PR hub — прототип</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
+  .fade-in { animation: fadeIn 0.3s ease-in; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .pulse-dot { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+  .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.6s infinite; }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  [contenteditable]:focus { outline: 2px solid #6366f1; outline-offset: 2px; border-radius: 4px; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+<!-- ─── Header ─────────────────────────────────────────────── -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+  <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+    <div class="flex items-center gap-6">
+      <button onclick="show('projects')" class="font-semibold text-lg flex items-center gap-2 hover:opacity-80">
+        <span class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-sm">AI</span>
+        <span>PR hub</span>
+      </button>
+      <div id="projectContext" class="hidden items-center gap-3 text-sm border-l border-slate-200 pl-6">
+        <button onclick="show('projects')" class="text-slate-500 hover:text-slate-700">← Проекты</button>
+        <span class="text-slate-300">/</span>
+        <span id="currentProjectName" class="font-medium text-slate-800"></span>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <nav id="projectNav" class="hidden gap-1">
+        <button onclick="show('brief')"   class="nav-btn px-3 py-1.5 rounded-md text-sm font-medium" data-screen="brief">1. Релизы</button>
+        <button onclick="show('match')"   class="nav-btn px-3 py-1.5 rounded-md text-sm font-medium" data-screen="match">2. Подбор каналов</button>
+        <button onclick="show('seeding')" class="nav-btn px-3 py-1.5 rounded-md text-sm font-medium" data-screen="seeding">3. Подготовка текстов</button>
+        <button onclick="show('perf')"    class="nav-btn px-3 py-1.5 rounded-md text-sm font-medium" data-screen="perf">4. Отчёт</button>
+      </nav>
+      <div class="flex items-center gap-3 text-sm text-slate-600 ml-3 border-l border-slate-200 pl-4">
+        <span class="text-xs">$24 / мес</span>
+        <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-medium">Б</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN: PROJECTS (главная — список проектов)                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<main id="screen-projects" class="screen max-w-6xl mx-auto px-6 py-8 hidden">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Проекты</h1>
+      <p class="text-slate-500 text-sm mt-1">Каждый проект — отдельный запуск, от пресс-релиза до отчёта. Вернись, чтобы обновить отчёт или спланировать новые посевы.</p>
+    </div>
+    <button onclick="newProject()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+      + Новый проект
+    </button>
+  </div>
+
+  <div class="bg-white rounded-lg border border-slate-200 p-3 mb-4 flex gap-2 items-center">
+    <span class="text-slate-400 pl-2">🔍</span>
+    <input id="projSearch" type="text" oninput="filterProjects(this.value)" placeholder="Поиск по названию, тематике, дате..." class="flex-1 px-2 py-1.5 text-sm focus:outline-none">
+    <select onchange="filterByStatus(this.value)" class="px-3 py-1.5 border border-slate-200 rounded-md text-sm">
+      <option value="all">Все статусы</option>
+      <option value="active">В работе</option>
+      <option value="done">Завершён</option>
+      <option value="archived">Архив</option>
+    </select>
+    <select class="px-3 py-1.5 border border-slate-200 rounded-md text-sm">
+      <option>Сортировка: новые сверху</option>
+      <option>По дате создания</option>
+      <option>По охвату отчёта</option>
+      <option>По названию</option>
+    </select>
+  </div>
+
+  <div id="projectsList" class="grid grid-cols-1 gap-3"></div>
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 0: BRIEF (доработка пресс-релиза)                                -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<main id="screen-brief" class="screen max-w-7xl mx-auto px-6 py-8 hidden">
+  <h1 class="text-2xl font-semibold mb-1">Доработка пресс-релиза</h1>
+  <p class="text-slate-500 mb-6 text-sm">ИИ-редактор «Чистякова v3» — проверяет на новость, чистит стиль по стандарту Яндекса, ставит вердикт ИИ-Ти.</p>
+
+  <div class="grid grid-cols-12 gap-4" style="height: calc(100vh - 180px); min-height: 600px;">
+
+    <!-- ── Левая колонка: черновик ─────────────────────────────────────── -->
+    <div class="col-span-7 bg-white rounded-lg border border-slate-200 flex flex-col">
+      <div class="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-medium text-slate-600 uppercase tracking-wide">Черновик релиза</span>
+          <span id="briefVersion" class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600">v1 · исходник</span>
+        </div>
+        <div class="flex gap-1 text-xs">
+          <button onclick="briefShowVersion(1)" class="version-btn px-2 py-1 rounded hover:bg-slate-100" data-v="1">v1</button>
+          <button onclick="briefShowVersion(2)" class="version-btn px-2 py-1 rounded hover:bg-slate-100 hidden" data-v="2">v2</button>
+          <button onclick="briefShowVersion(3)" class="version-btn px-2 py-1 rounded hover:bg-slate-100 hidden" data-v="3">v3</button>
+        </div>
+      </div>
+      <textarea id="briefDraft" class="flex-1 p-5 text-sm leading-relaxed resize-none focus:outline-none font-mono"
+        placeholder="Вставь черновик пресс-релиза сюда...">Яндекс запускает новый сервис доставки лекарств. Теперь пользователи смогут заказывать лекарства через приложение Go. Сервис делает покупку лекарств удобнее. Доставка работает быстро. Это уникальное предложение на российском рынке.</textarea>
+      <div class="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+        <span id="briefChars" class="text-xs text-slate-400">0 знаков · 0 предложений</span>
+        <div class="flex gap-2">
+          <button onclick="briefAnalyze()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md text-sm font-medium">
+            🔍 Проанализировать
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Правая колонка: чат с редактором ─────────────────────────────── -->
+    <div class="col-span-5 bg-white rounded-lg border border-slate-200 flex flex-col">
+      <div class="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-medium">Ч</span>
+          <span class="text-sm font-medium">ИИ-Чистякова</span>
+          <span class="text-xs text-slate-400">v3</span>
+        </div>
+        <span id="briefVerdict" class="text-xs px-2 py-1 rounded-md bg-slate-100 text-slate-500">не проверено</span>
+      </div>
+      <div id="briefChat" class="flex-1 p-4 overflow-y-auto space-y-3 text-sm">
+        <div class="bg-slate-50 rounded-lg p-3 text-slate-600 text-xs leading-relaxed">
+          Я работаю по 6 этапам: проверка на новость → редакторский анализ → критика «ИИ-Вова» → решение → переписывание → вердикт ИИ-Ти. Покажу проблемы, задам вопросы по фактуре, перепишу под стандарт Яндекса.
+        </div>
+      </div>
+      <div class="px-3 py-3 border-t border-slate-200">
+        <div class="flex gap-2">
+          <input id="briefInput" type="text" placeholder="Ответь на вопрос или попроси переписать..." class="flex-1 px-3 py-2 border border-slate-200 rounded-md text-sm focus:border-indigo-400 focus:outline-none">
+          <button onclick="briefSend()" class="bg-slate-900 hover:bg-slate-700 text-white px-3 py-2 rounded-md text-sm">↑</button>
+        </div>
+        <div class="flex gap-2 mt-2">
+          <button onclick="briefQuick('Перепиши с учётом ответов')" class="text-xs px-2 py-1 border border-slate-200 rounded-md hover:bg-slate-50">✎ Перепиши</button>
+          <button onclick="briefQuick('Усиль вердикт ИИ-Ти')" class="text-xs px-2 py-1 border border-slate-200 rounded-md hover:bg-slate-50">📊 Оцени строже</button>
+          <button onclick="briefQuick('Какие риски?')" class="text-xs px-2 py-1 border border-slate-200 rounded-md hover:bg-slate-50">⚠ Риски</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 1: MATCH                                                         -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<main id="screen-match" class="screen max-w-7xl mx-auto px-6 py-8 hidden">
+  <h1 class="text-2xl font-semibold mb-1">Подбор каналов под релиз</h1>
+  <p class="text-slate-500 mb-6 text-sm">Опиши инфоповод — модель найдёт подходящие каналы из базы.</p>
+
+  <div class="bg-white rounded-lg border border-slate-200 p-5 mb-4">
+    <label class="text-xs font-medium text-slate-600 uppercase tracking-wide">Тезисы релиза</label>
+    <textarea id="brief" class="mt-2 w-full h-32 p-3 border border-slate-200 rounded-md text-sm resize-none focus:border-indigo-400 focus:outline-none" placeholder="Опиши что запускаем, аудиторию, ключевые сообщения...">Яндекс Go запускает доставку лекарств из аптек за 30 минут. Покрытие — Москва и СПб. Работает с рецептурными и безрецептурными препаратами. Главное отличие от конкурентов — интеграция с аптеками напрямую, без посредников. Целевая аудитория: люди 25-45, городские жители, которые ценят время.</textarea>
+    <div class="mt-4 space-y-3">
+      <div>
+        <div class="text-xs font-medium text-slate-600 uppercase tracking-wide mb-2">Тематики (можно выбрать несколько)</div>
+        <div id="topicChips" class="flex flex-wrap gap-2">
+          <button onclick="toggleTopic(this)" class="topic-chip px-3 py-1 rounded-full border border-slate-200 text-sm hover:border-indigo-400" data-active="false">Город</button>
+          <button onclick="toggleTopic(this)" class="topic-chip px-3 py-1 rounded-full border border-slate-200 text-sm hover:border-indigo-400" data-active="false">Медицина</button>
+          <button onclick="toggleTopic(this)" class="topic-chip px-3 py-1 rounded-full border border-slate-200 text-sm hover:border-indigo-400" data-active="false">Технологии</button>
+          <button onclick="toggleTopic(this)" class="topic-chip px-3 py-1 rounded-full border border-slate-200 text-sm hover:border-indigo-400" data-active="false">Лайфстайл</button>
+          <button onclick="toggleTopic(this)" class="topic-chip px-3 py-1 rounded-full border border-slate-200 text-sm hover:border-indigo-400" data-active="false">Финансы</button>
+          <button onclick="toggleTopic(this)" class="topic-chip px-3 py-1 rounded-full border border-slate-200 text-sm hover:border-indigo-400" data-active="false">Авто</button>
+          <button onclick="toggleTopic(this)" class="topic-chip px-3 py-1 rounded-full border border-slate-200 text-sm hover:border-indigo-400" data-active="false">Бизнес</button>
+          <button onclick="toggleTopic(this)" class="topic-chip px-3 py-1 rounded-full border border-slate-200 text-sm hover:border-indigo-400" data-active="false">Маркетинг</button>
+          <button onclick="toggleTopic(this)" class="topic-chip px-3 py-1 rounded-full border border-slate-200 text-sm hover:border-indigo-400" data-active="false">Юмор</button>
+          <button onclick="toggleTopic(this)" class="topic-chip px-3 py-1 rounded-full border border-slate-200 text-sm hover:border-indigo-400" data-active="false">Новости</button>
+        </div>
+      </div>
+      <div class="flex items-center justify-between">
+        <span id="charCount" class="text-xs text-slate-400">412 знаков</span>
+        <div class="flex gap-3 items-center text-sm">
+          <select class="px-3 py-1.5 border border-slate-200 rounded-md text-sm">
+            <option>Масштаб: 10k+</option>
+            <option>1k+</option>
+            <option>50k+</option>
+            <option>100k+</option>
+            <option>500k+</option>
+          </select>
+          <select class="px-3 py-1.5 border border-slate-200 rounded-md text-sm">
+            <option>Аудит: 🟢 🟠</option>
+            <option>Только 🟢</option>
+            <option>Все</option>
+          </select>
+          <button onclick="runMatch()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-md text-sm font-medium">
+            🔍 Подобрать каналы
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="matchLoading" class="hidden bg-white rounded-lg border border-slate-200 p-8 text-center">
+    <div class="inline-flex gap-1 mb-2">
+      <span class="w-2 h-2 rounded-full bg-indigo-500 pulse-dot"></span>
+      <span class="w-2 h-2 rounded-full bg-indigo-500 pulse-dot" style="animation-delay:0.2s"></span>
+      <span class="w-2 h-2 rounded-full bg-indigo-500 pulse-dot" style="animation-delay:0.4s"></span>
+    </div>
+    <p class="text-sm text-slate-500">Анализирую 487 каналов в каталоге...</p>
+  </div>
+
+  <div id="matchResults" class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+    <div class="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+      <div class="text-sm">
+        <span class="font-medium">Результаты:</span>
+        <span class="text-slate-500">15 каналов · отфильтровано из 487</span>
+      </div>
+      <div class="text-sm text-slate-500">
+        <span id="selectedCount">0</span> выбрано
+      </div>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="text-xs text-slate-500 uppercase tracking-wide">
+        <tr class="border-b border-slate-100">
+          <th class="px-4 py-2 text-left w-8"><input type="checkbox" onchange="toggleAll(this)"></th>
+          <th class="px-4 py-2 text-left">Канал</th>
+          <th class="px-4 py-2 text-right">Подписч.</th>
+          <th class="px-4 py-2 text-right">Охват</th>
+          <th class="px-4 py-2 text-right">Стоимость</th>
+          <th class="px-4 py-2 text-center">Fit</th>
+          <th class="px-4 py-2 text-center">Аудит</th>
+          <th class="px-4 py-2 text-left">Тематика</th>
+        </tr>
+      </thead>
+      <tbody id="matchRows"></tbody>
+    </table>
+    <div class="px-5 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+      <button onclick="clearSelection()" class="text-sm text-slate-500 hover:text-slate-700">✕ Снять все</button>
+      <button onclick="goToSeeding()" id="generateBtn" class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-4 py-2 rounded-md text-sm font-medium disabled:cursor-not-allowed">
+        → Сгенерировать тексты (<span id="generateCount">0</span>)
+      </button>
+    </div>
+  </div>
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 2: SEEDING                                                       -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<main id="screen-seeding" class="screen max-w-5xl mx-auto px-6 py-8 hidden">
+  <div class="flex items-center gap-2 text-sm text-slate-500 mb-2">
+    <a href="#" onclick="show('match'); return false;" class="hover:text-indigo-600">← Match</a>
+    <span>·</span>
+    <span>Доставка лекарств</span>
+  </div>
+  <h1 class="text-2xl font-semibold mb-1">Генерация текстов</h1>
+
+  <div class="bg-white rounded-lg border border-slate-200 p-4 mb-4 flex items-center justify-between text-sm">
+    <div>
+      <span class="text-slate-500">Каналы:</span>
+      <span id="seedingChannels" class="font-medium ml-1">@moscowmap @medach @prodoctorov</span>
+    </div>
+    <button class="text-indigo-600 hover:text-indigo-700 text-sm">+ добавить ещё</button>
+  </div>
+
+  <div id="seedingCards" class="space-y-4"></div>
+
+  <div class="flex items-center justify-between mt-6 bg-white rounded-lg border border-slate-200 p-4">
+    <div class="text-sm text-slate-500">
+      <span id="seedingProgress">0 / 3 готово</span>
+    </div>
+    <div class="flex gap-2">
+      <button class="px-4 py-2 border border-slate-200 rounded-md text-sm font-medium hover:bg-slate-50">⬇ Скачать .docx</button>
+      <button class="px-4 py-2 border border-slate-200 rounded-md text-sm font-medium hover:bg-slate-50">⬇ Скачать .xlsx</button>
+      <button onclick="show('perf')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">→ Перейти к Отчёту</button>
+    </div>
+  </div>
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 3: PERF / ОТЧЁТ — медиамониторинг запуска                        -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<main id="screen-perf" class="screen max-w-6xl mx-auto px-6 py-8 hidden">
+  <h1 class="text-2xl font-semibold mb-1">Отчёт по запуску</h1>
+  <p class="text-slate-500 mb-6 text-sm">Полная картина медиаотклика: упоминания в СМИ, блогах и Telegram, суммарные охваты, тональность постов и комментариев, сводный анализ.</p>
+
+  <div class="bg-white rounded-lg border border-slate-200 p-5 mb-4">
+    <div>
+      <label class="text-xs font-medium text-slate-600 uppercase tracking-wide">Период мониторинга</label>
+      <div class="mt-2 flex gap-2 items-center max-w-md">
+        <input type="date" value="2026-05-15" class="px-3 py-2 border border-slate-200 rounded-md text-sm flex-1">
+        <span class="text-slate-400">—</span>
+        <input type="date" value="2026-05-22" class="px-3 py-2 border border-slate-200 rounded-md text-sm flex-1">
+      </div>
+    </div>
+
+    <div class="mt-4 bg-violet-50 border border-violet-200 rounded-lg p-4">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-medium">AI</span>
+        <span class="text-xs font-medium text-violet-800 uppercase tracking-wide">Поисковый запрос составлен автоматически</span>
+        <button class="ml-auto text-xs text-violet-700 hover:underline">🔄 пересоставить</button>
+      </div>
+      <div class="text-sm text-slate-700 leading-relaxed mb-2">
+        Учтены тезисы релиза, названия продуктов и партнёров. Расширены синонимы и возможные варианты написания.
+      </div>
+      <div class="flex flex-wrap gap-1.5">
+        <span class="text-xs px-2 py-1 rounded bg-white border border-violet-200 text-slate-700">Яндекс Go</span>
+        <span class="text-xs px-2 py-1 rounded bg-white border border-violet-200 text-slate-700">доставка лекарств</span>
+        <span class="text-xs px-2 py-1 rounded bg-white border border-violet-200 text-slate-700">Яндекс лекарства</span>
+        <span class="text-xs px-2 py-1 rounded bg-white border border-violet-200 text-slate-700">аптека.ру</span>
+        <span class="text-xs px-2 py-1 rounded bg-white border border-violet-200 text-slate-700">Ригла 36,6</span>
+        <span class="text-xs px-2 py-1 rounded bg-white border border-violet-200 text-slate-700">аптечная доставка</span>
+        <span class="text-xs px-2 py-1 rounded bg-white border border-violet-200 text-slate-700">рецептурные препараты онлайн</span>
+        <button class="text-xs px-2 py-1 rounded border border-dashed border-violet-300 text-violet-600 hover:bg-white">+ добавить вручную</button>
+      </div>
+    </div>
+
+    <div class="mt-4 flex items-center justify-between">
+      <div class="text-xs text-slate-500">
+        Источники: <span class="font-medium text-slate-700">СМИ + блоги</span> (Медиалогия / Firecrawl) · <span class="font-medium text-slate-700">Telegram</span> (TGStat + Apify)
+      </div>
+      <button onclick="runPerf()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+        🚀 Запустить мониторинг
+      </button>
+    </div>
+  </div>
+
+  <div id="perfLoading" class="hidden bg-white rounded-lg border border-slate-200 p-8">
+    <div class="text-sm text-slate-600 mb-4 font-medium">Собираю данные...</div>
+    <div class="space-y-2 text-sm" id="perfLoadingSteps">
+      <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-indigo-500 pulse-dot"></span><span class="step-1">Поиск упоминаний в СМИ и блогах (Медиалогия)...</span></div>
+    </div>
+  </div>
+
+  <div id="perfResults" class="hidden space-y-4">
+
+    <!-- ── Summary cards ──────────────────────────────────────────── -->
+    <div class="grid grid-cols-4 gap-3">
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="text-xs text-slate-500 uppercase mb-1">Публикаций</div>
+        <div class="text-2xl font-semibold">147</div>
+        <div class="text-xs text-slate-500 mt-1">
+          <span class="text-slate-700">82</span> СМИ · <span class="text-slate-700">65</span> Telegram
+        </div>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="text-xs text-slate-500 uppercase mb-1">Суммарный охват</div>
+        <div class="text-2xl font-semibold">12.4M</div>
+        <div class="text-xs text-emerald-600 mt-1">+38% vs прошлый запуск</div>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="text-xs text-slate-500 uppercase mb-1">Тональность</div>
+        <div class="text-2xl font-semibold text-emerald-600">+0.42</div>
+        <div class="text-xs text-slate-500 mt-1">положительная</div>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="text-xs text-slate-500 uppercase mb-1">Комментариев</div>
+        <div class="text-2xl font-semibold">2 184</div>
+        <div class="text-xs text-slate-500 mt-1">в обсуждениях постов</div>
+      </div>
+    </div>
+
+    <!-- ── AI Summary ─────────────────────────────────────────────── -->
+    <div class="bg-white rounded-lg border border-slate-200 p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="w-6 h-6 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-medium">AI</span>
+        <h2 class="font-semibold">Сводный анализ запуска</h2>
+      </div>
+      <div class="text-sm text-slate-700 leading-relaxed space-y-3">
+        <p><strong>Запуск отработан удачно.</strong> За 7 дней получено 147 публикаций общим охватом 12.4M — на 38% выше предыдущего запуска похожего масштаба («Маркет: Электроника», май 2026). Доминирует положительная тональность (+0.42 по 5-балльной шкале).</p>
+        <p><strong>Лучше всего сработали Tier-1 СМИ:</strong> РБК, Forbes, Коммерсант — собрали 4.1M из 12.4M общего охвата. Ключевой нарратив — «удобство для людей с ограниченной мобильностью» (8 из 10 заголовков).</p>
+        <p><strong>В Telegram реакция смешанная.</strong> Городские каналы (@moscowmap, @varlamov_news) дали высокий охват, но низкое вовлечение (ERR ниже бенчмарка). Медицинские каналы (@medach, @prodoctorov) — наоборот: меньше охват, но ERR в 1.5× выше среднего по каналу.</p>
+        <p><strong>В комментариях</strong> чаще всего обсуждают: цена доставки (38% упоминаний), сроки в регионах (24%), вопросы о рецептурных препаратах (18%). Негатив — 11%, в основном про «ещё одна доставка от Яндекса, лучше бы метро починили».</p>
+        <p class="text-amber-700 bg-amber-50 border-l-4 border-amber-400 p-3 rounded"><strong>⚠ Аномалия:</strong> в 3 каналах (@kommercbiz, @breaking_business, @tgrussia) одинаковый текст с одинаковыми реакциями — похоже на координированный посев конкурента или сеть. Рекомендую проверить.</p>
+      </div>
+    </div>
+
+    <!-- ── Tonality chart ─────────────────────────────────────────── -->
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-white rounded-lg border border-slate-200 p-5">
+        <h3 class="text-sm font-semibold mb-3">Тональность публикаций</h3>
+        <div class="space-y-2">
+          <div class="flex items-center gap-3">
+            <span class="text-xs w-20">Позитив</span>
+            <div class="flex-1 h-6 bg-slate-100 rounded overflow-hidden"><div class="h-full bg-emerald-400" style="width: 64%"></div></div>
+            <span class="text-xs font-mono w-12 text-right">64% · 94</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs w-20">Нейтрал</span>
+            <div class="flex-1 h-6 bg-slate-100 rounded overflow-hidden"><div class="h-full bg-slate-400" style="width: 25%"></div></div>
+            <span class="text-xs font-mono w-12 text-right">25% · 37</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs w-20">Негатив</span>
+            <div class="flex-1 h-6 bg-slate-100 rounded overflow-hidden"><div class="h-full bg-rose-400" style="width: 11%"></div></div>
+            <span class="text-xs font-mono w-12 text-right">11% · 16</span>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-5">
+        <h3 class="text-sm font-semibold mb-3">Тональность комментариев</h3>
+        <div class="space-y-2">
+          <div class="flex items-center gap-3">
+            <span class="text-xs w-20">Позитив</span>
+            <div class="flex-1 h-6 bg-slate-100 rounded overflow-hidden"><div class="h-full bg-emerald-400" style="width: 48%"></div></div>
+            <span class="text-xs font-mono w-14 text-right">48% · 1048</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs w-20">Нейтрал</span>
+            <div class="flex-1 h-6 bg-slate-100 rounded overflow-hidden"><div class="h-full bg-slate-400" style="width: 32%"></div></div>
+            <span class="text-xs font-mono w-14 text-right">32% · 699</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs w-20">Негатив</span>
+            <div class="flex-1 h-6 bg-slate-100 rounded overflow-hidden"><div class="h-full bg-rose-400" style="width: 20%"></div></div>
+            <span class="text-xs font-mono w-14 text-right">20% · 437</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Top publications ───────────────────────────────────────── -->
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3 border-b border-slate-200 bg-slate-50">
+        <h3 class="text-sm font-semibold">Топ публикаций по охвату</h3>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="text-xs text-slate-500 uppercase tracking-wide">
+          <tr class="border-b border-slate-100">
+            <th class="px-4 py-2 text-left">Источник</th>
+            <th class="px-4 py-2 text-left">Заголовок / превью</th>
+            <th class="px-4 py-2 text-right">Охват</th>
+            <th class="px-4 py-2 text-center">Тон</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">СМИ</span><div class="mt-1 text-xs text-slate-500">rbc.ru</div></td>
+            <td class="px-4 py-3"><a href="#" class="text-indigo-600 hover:underline">Яндекс начал доставлять лекарства за 30 минут</a></td>
+            <td class="px-4 py-3 text-right font-mono">1.8M</td>
+            <td class="px-4 py-3 text-center">🟢</td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">СМИ</span><div class="mt-1 text-xs text-slate-500">kommersant.ru</div></td>
+            <td class="px-4 py-3"><a href="#" class="text-indigo-600 hover:underline">«Аптека.ру» и Ригла договорились с Яндекс Go о доставке</a></td>
+            <td class="px-4 py-3 text-right font-mono">1.2M</td>
+            <td class="px-4 py-3 text-center">⚪</td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded bg-cyan-50 text-cyan-700">TG</span><div class="mt-1 text-xs text-slate-500">@varlamov_news</div></td>
+            <td class="px-4 py-3"><a href="#" class="text-indigo-600 hover:underline">«Хорошая инициатива, но Яндекс снова собирает данные...»</a></td>
+            <td class="px-4 py-3 text-right font-mono">687k</td>
+            <td class="px-4 py-3 text-center">🟠</td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded bg-cyan-50 text-cyan-700">TG</span><div class="mt-1 text-xs text-slate-500">@moscowmap</div></td>
+            <td class="px-4 py-3"><a href="#" class="text-indigo-600 hover:underline">«Москва, ещё одна полезная штука от Яндекса...»</a></td>
+            <td class="px-4 py-3 text-right font-mono">431k</td>
+            <td class="px-4 py-3 text-center">🟢</td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">СМИ</span><div class="mt-1 text-xs text-slate-500">forbes.ru</div></td>
+            <td class="px-4 py-3"><a href="#" class="text-indigo-600 hover:underline">Аптечный рынок: Яндекс заходит напрямую, минуя агрегаторов</a></td>
+            <td class="px-4 py-3 text-right font-mono">340k</td>
+            <td class="px-4 py-3 text-center">🟢</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="px-5 py-2 text-xs text-slate-500 bg-slate-50 border-t border-slate-100">
+        Показано 5 из 147 · <a href="#" class="text-indigo-600 hover:underline">показать все</a>
+      </div>
+    </div>
+
+    <!-- ── Per-seeding-post performance ───────────────────────────── -->
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <h3 class="text-sm font-semibold">Эффективность постов посева</h3>
+        <span class="text-xs text-slate-500">Сравнение с медианой канала</span>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="text-xs text-slate-500 uppercase tracking-wide">
+          <tr class="border-b border-slate-100">
+            <th class="px-4 py-2 text-left">Канал</th>
+            <th class="px-4 py-2 text-right">Охват</th>
+            <th class="px-4 py-2 text-right">ERR</th>
+            <th class="px-4 py-2 text-left">Реакции</th>
+            <th class="px-4 py-2 text-left">Вердикт</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100">
+            <td class="px-4 py-3"><div class="font-medium">@moscowmap</div><a href="#" class="text-xs text-indigo-600">/76279 ↗</a></td>
+            <td class="px-4 py-3 text-right"><div class="font-mono">431k</div><div class="text-xs text-emerald-600">+14% vs 380k</div></td>
+            <td class="px-4 py-3 text-right"><div class="font-mono">0.22%</div><div class="text-xs text-red-600">−88% vs 1.8%</div></td>
+            <td class="px-4 py-3 text-xs">🔁 1 · ↗ 895 · 💬 39 · ❤ 0</td>
+            <td class="px-4 py-3"><span class="px-2 py-1 rounded bg-red-50 text-red-700 text-xs font-medium">🔴 не зашёл</span></td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="px-4 py-3"><div class="font-medium">@medach</div><a href="#" class="text-xs text-indigo-600">/12847 ↗</a></td>
+            <td class="px-4 py-3 text-right"><div class="font-mono">94k</div><div class="text-xs text-emerald-600">+6% vs 89k</div></td>
+            <td class="px-4 py-3 text-right"><div class="font-mono">5.2%</div><div class="text-xs text-emerald-600">+44% vs 3.6%</div></td>
+            <td class="px-4 py-3 text-xs">🔁 47 · ↗ 412 · 💬 318 · ❤ 1.1k</td>
+            <td class="px-4 py-3"><span class="px-2 py-1 rounded bg-emerald-50 text-emerald-700 text-xs font-medium">🟢 сильно выше</span></td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="px-4 py-3"><div class="font-medium">@prodoctorov</div><a href="#" class="text-xs text-indigo-600">/8821 ↗</a></td>
+            <td class="px-4 py-3 text-right"><div class="font-mono">58k</div><div class="text-xs text-emerald-600">+7% vs 54k</div></td>
+            <td class="px-4 py-3 text-right"><div class="font-mono">4.1%</div><div class="text-xs text-emerald-600">+28% vs 3.2%</div></td>
+            <td class="px-4 py-3 text-xs">🔁 12 · ↗ 47 · 💬 23 · ❤ 180</td>
+            <td class="px-4 py-3"><span class="px-2 py-1 rounded bg-emerald-50 text-emerald-700 text-xs font-medium">🟢 лучше</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Footer actions ─────────────────────────────────────────── -->
+    <div class="bg-white rounded-lg border border-slate-200 p-4 flex items-center justify-between">
+      <div class="text-sm text-slate-500">
+        Обновлено: <span class="text-slate-700">22 мая 2026, 13:40</span> ·
+        <button onclick="runPerf()" class="text-indigo-600 hover:underline">обновить данные</button>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="show('match')" class="px-3 py-1.5 border border-slate-200 rounded-md text-sm font-medium hover:bg-slate-50">+ Спланировать новые посевы</button>
+        <button class="px-3 py-1.5 border border-slate-200 rounded-md text-sm font-medium hover:bg-slate-50">⬇ Скачать .docx</button>
+        <button class="px-3 py-1.5 border border-slate-200 rounded-md text-sm font-medium hover:bg-slate-50">⬇ Скачать .xlsx</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ─── Side panel: profile preview ───────────────────────────── -->
+<div id="profilePanel" class="hidden fixed inset-y-0 right-0 w-96 bg-white border-l border-slate-200 shadow-2xl z-20 overflow-y-auto">
+  <div class="p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 id="profileTitle" class="text-xl font-semibold"></h2>
+      <button onclick="closeProfile()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">×</button>
+    </div>
+    <div id="profileBody" class="text-sm space-y-4"></div>
+  </div>
+</div>
+
+<script>
+// ── Mock data ─────────────────────────────────────────────────────────────
+const channels = [
+  { name: 'Москва.Карта',         ch: '@moscowmap',     subs: '412k', reach: '380k', cost: '180 000 ₽', fit: 9.2, audit: '🟢', topic: 'Город',     desc: 'Городские новости Москвы, ироничный TOV, средний пост 350 знаков' },
+  { name: 'Медач',                ch: '@medach',        subs: '89k',  reach: '89k',  cost: '120 000 ₽', fit: 8.7, audit: '🟢', topic: 'Медицина',  desc: 'Научпоп для врачей и фармацевтов, длинные разборы со ссылками' },
+  { name: 'Лайфхакер',            ch: '@lifehacker',    subs: '203k', reach: '195k', cost: '220 000 ₽', fit: 8.4, audit: '🟠', topic: 'Лайфхаки',  desc: 'Бытовые советы, бодрый TOV, любят полезные сервисы' },
+  { name: 'ПроДокторов',          ch: '@prodoctorov',   subs: '54k',  reach: '54k',  cost: '85 000 ₽',  fit: 8.1, audit: '🟢', topic: 'Медицина',  desc: 'Канал для врачей, объективные обзоры новых сервисов' },
+  { name: 'WhackDoor',            ch: '@whackdoor',     subs: '34k',  reach: '38k',  cost: '60 000 ₽',  fit: 7.9, audit: '🟢', topic: 'Технологии',desc: 'Гик-юмор, ИТ и сервисы, средний пост 180 знаков' },
+  { name: 'Варламов.Новости',     ch: '@varlamov_news', subs: '687k', reach: '520k', cost: '450 000 ₽', fit: 7.5, audit: '🟠', topic: 'Город',     desc: 'Городская среда, инфраструктура, иногда негативный тон' },
+  { name: 'MASH',                 ch: '@mash',          subs: '1.2M', reach: '780k', cost: '600 000 ₽', fit: 6.8, audit: '🟠', topic: 'Новости',   desc: 'Большой охват, бытовые истории, новости часто негативные' },
+];
+
+// ── Mock projects ─────────────────────────────────────────────────────────
+const projects = [
+  {
+    id: 'proj-1',
+    title: 'Доставка лекарств в Яндекс Go',
+    subtitle: 'Москва + СПб · 30 минут',
+    status: 'active', statusLabel: '🟢 В работе',
+    updated: '22 мая 2026',
+    progress: { brief: 'done', match: 'done', seeding: 'done', perf: 'done' },
+    metrics: '147 публикаций · охват 12.4M · 🟢 +0.42',
+    topic: 'Медицина',
+  },
+  {
+    id: 'proj-2',
+    title: 'Алиса для бизнеса',
+    subtitle: 'B2B-функции голосового ассистента',
+    status: 'active', statusLabel: '🟡 В процессе',
+    updated: '20 мая 2026',
+    progress: { brief: 'done', match: 'done', seeding: 'progress', perf: 'pending' },
+    metrics: 'в процессе подготовки текстов · 8/12 каналов',
+    topic: 'Технологии',
+  },
+  {
+    id: 'proj-3',
+    title: 'Маркет: новый раздел «Электроника»',
+    subtitle: 'Запуск отдельной витрины',
+    status: 'done', statusLabel: '⚪ Завершён',
+    updated: '12 мая 2026',
+    progress: { brief: 'done', match: 'done', seeding: 'done', perf: 'done' },
+    metrics: '89 публикаций · охват 6.2M · 🟢 +0.38',
+    topic: 'E-commerce',
+  },
+  {
+    id: 'proj-4',
+    title: 'Афиша: рекомендации на основе ML',
+    subtitle: 'Персональные подборки событий',
+    status: 'done', statusLabel: '⚪ Завершён',
+    updated: '28 апр 2026',
+    progress: { brief: 'done', match: 'done', seeding: 'done', perf: 'done' },
+    metrics: '54 публикации · охват 3.1M · 🟡 +0.08',
+    topic: 'Технологии',
+  },
+  {
+    id: 'proj-5',
+    title: 'Кешбэк-программа Плюса',
+    subtitle: 'Расширение партнёрской сети',
+    status: 'archived', statusLabel: '⚪ Архив',
+    updated: '15 апр 2026',
+    progress: { brief: 'done', match: 'done', seeding: 'done', perf: 'done' },
+    metrics: '203 публикации · охват 18.4M · 🟢 +0.51',
+    topic: 'Финансы',
+  },
+];
+
+let currentProject = null;
+let projectFilters = { search: '', status: 'all' };
+
+// ── Navigation ────────────────────────────────────────────────────────────
+function show(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById('screen-' + name).classList.remove('hidden');
+
+  // Контекстный header: проекты — без контекста, остальные — с навигацией шагов
+  const projectNav = document.getElementById('projectNav');
+  const projectContext = document.getElementById('projectContext');
+  if (name === 'projects' || !currentProject) {
+    projectNav.classList.add('hidden');
+    projectNav.classList.remove('flex');
+    projectContext.classList.add('hidden');
+    projectContext.classList.remove('flex');
+  } else {
+    projectNav.classList.remove('hidden');
+    projectNav.classList.add('flex');
+    projectContext.classList.remove('hidden');
+    projectContext.classList.add('flex');
+    document.getElementById('currentProjectName').textContent = currentProject.title;
+  }
+
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    if (b.dataset.screen === name) {
+      b.className = 'nav-btn px-3 py-1.5 rounded-md text-sm font-medium bg-indigo-50 text-indigo-700';
+    } else {
+      b.className = 'nav-btn px-3 py-1.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100';
+    }
+  });
+  closeProfile();
+
+  if (name === 'projects') renderProjects();
+}
+
+// ── Projects ──────────────────────────────────────────────────────────────
+function renderProjects() {
+  const list = document.getElementById('projectsList');
+  const filtered = projects.filter(p => {
+    if (projectFilters.status !== 'all' && p.status !== projectFilters.status) return false;
+    if (projectFilters.search) {
+      const q = projectFilters.search.toLowerCase();
+      if (!p.title.toLowerCase().includes(q)
+        && !p.subtitle.toLowerCase().includes(q)
+        && !p.topic.toLowerCase().includes(q)
+        && !p.updated.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const stepLabel = (s) => {
+    if (s === 'done')     return '<span class="text-emerald-600">✓</span>';
+    if (s === 'progress') return '<span class="text-amber-600">⋯</span>';
+    return '<span class="text-slate-300">○</span>';
+  };
+
+  list.innerHTML = filtered.length === 0
+    ? '<div class="bg-white border border-slate-200 rounded-lg p-12 text-center text-slate-400 text-sm">Ничего не найдено</div>'
+    : filtered.map(p => `
+      <div onclick="openProject('${p.id}')" class="bg-white rounded-lg border border-slate-200 p-5 hover:border-indigo-300 hover:shadow-sm cursor-pointer transition-all fade-in">
+        <div class="flex items-start justify-between mb-2">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="font-semibold text-base">${p.title}</h3>
+              <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600">${p.topic}</span>
+            </div>
+            <p class="text-sm text-slate-500">${p.subtitle}</p>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-slate-400">обновлён</div>
+            <div class="text-xs text-slate-700">${p.updated}</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-4 mt-3 text-xs text-slate-500">
+          <div class="flex items-center gap-1.5">
+            ${stepLabel(p.progress.brief)} Релиз
+          </div>
+          <div class="flex items-center gap-1.5">
+            ${stepLabel(p.progress.match)} Каналы
+          </div>
+          <div class="flex items-center gap-1.5">
+            ${stepLabel(p.progress.seeding)} Тексты
+          </div>
+          <div class="flex items-center gap-1.5">
+            ${stepLabel(p.progress.perf)} Отчёт
+          </div>
+        </div>
+        <div class="mt-3 pt-3 border-t border-slate-100 text-sm text-slate-700">
+          ${p.metrics}
+        </div>
+      </div>
+    `).join('');
+}
+
+function filterProjects(q) {
+  projectFilters.search = q;
+  renderProjects();
+}
+
+function filterByStatus(s) {
+  projectFilters.status = s;
+  renderProjects();
+}
+
+function openProject(id) {
+  currentProject = projects.find(p => p.id === id);
+  // если есть отчёт — открываем сразу на отчёте, иначе на первом не-завершённом шаге
+  const order = ['brief', 'match', 'seeding', 'perf'];
+  const firstPending = order.find(s => currentProject.progress[s] !== 'done');
+  show(firstPending || 'perf');
+}
+
+function newProject() {
+  currentProject = {
+    id: 'proj-new',
+    title: 'Новый проект',
+    subtitle: '',
+    status: 'active',
+    progress: { brief: 'pending', match: 'pending', seeding: 'pending', perf: 'pending' },
+    metrics: '',
+    topic: '—',
+  };
+  show('brief');
+}
+
+// ── Match screen ──────────────────────────────────────────────────────────
+function renderRows() {
+  const rows = channels.map((c, i) => `
+    <tr class="border-b border-slate-100 hover:bg-slate-50 fade-in" data-idx="${i}">
+      <td class="px-4 py-3"><input type="checkbox" class="row-cb" onchange="updateSelection()"></td>
+      <td class="px-4 py-3">
+        <div class="font-medium">${c.name}</div>
+        <button onclick="openProfile(${i})" class="text-xs text-indigo-600 hover:underline">${c.ch} ↗</button>
+      </td>
+      <td class="px-4 py-3 text-right font-mono text-xs">${c.subs}</td>
+      <td class="px-4 py-3 text-right font-mono text-xs">${c.reach}</td>
+      <td class="px-4 py-3 text-right font-mono text-xs">${c.cost}</td>
+      <td class="px-4 py-3 text-center"><span class="font-semibold ${c.fit >= 8 ? 'text-emerald-600' : c.fit >= 7 ? 'text-amber-600' : 'text-slate-500'}">${c.fit}</span></td>
+      <td class="px-4 py-3 text-center">${c.audit}</td>
+      <td class="px-4 py-3 text-slate-600 text-xs">${c.topic}</td>
+    </tr>
+  `).join('');
+  document.getElementById('matchRows').innerHTML = rows;
+}
+
+function runMatch() {
+  document.getElementById('matchResults').classList.add('hidden');
+  document.getElementById('matchLoading').classList.remove('hidden');
+  setTimeout(() => {
+    document.getElementById('matchLoading').classList.add('hidden');
+    document.getElementById('matchResults').classList.remove('hidden');
+    renderRows();
+    // pre-select first 3 to demo flow
+    document.querySelectorAll('.row-cb').forEach((cb, i) => { if (i < 3) cb.checked = true; });
+    updateSelection();
+  }, 1200);
+}
+
+function updateSelection() {
+  const n = document.querySelectorAll('.row-cb:checked').length;
+  document.getElementById('selectedCount').textContent = n;
+  document.getElementById('generateCount').textContent = n;
+  document.getElementById('generateBtn').disabled = n === 0;
+}
+
+function toggleAll(cb) {
+  document.querySelectorAll('.row-cb').forEach(x => x.checked = cb.checked);
+  updateSelection();
+}
+
+function toggleTopic(btn) {
+  const active = btn.dataset.active === 'true';
+  if (active) {
+    btn.dataset.active = 'false';
+    btn.className = 'topic-chip px-3 py-1 rounded-full border border-slate-200 text-sm hover:border-indigo-400';
+  } else {
+    btn.dataset.active = 'true';
+    btn.className = 'topic-chip px-3 py-1 rounded-full border border-indigo-500 bg-indigo-50 text-indigo-700 text-sm';
+  }
+}
+
+function clearSelection() {
+  document.querySelectorAll('.row-cb').forEach(x => x.checked = false);
+  updateSelection();
+}
+
+// ── Profile side panel ────────────────────────────────────────────────────
+function openProfile(idx) {
+  const c = channels[idx];
+  document.getElementById('profileTitle').textContent = c.ch;
+  document.getElementById('profileBody').innerHTML = `
+    <div>
+      <div class="text-xs text-slate-500 uppercase mb-1">Подписчики</div>
+      <div class="font-mono">${c.subs}</div>
+    </div>
+    <div>
+      <div class="text-xs text-slate-500 uppercase mb-1">Тематика</div>
+      <div>${c.topic}</div>
+    </div>
+    <div>
+      <div class="text-xs text-slate-500 uppercase mb-1">Аудит</div>
+      <div>${c.audit} Накрутка не выявлена</div>
+    </div>
+    <div>
+      <div class="text-xs text-slate-500 uppercase mb-2">TOV</div>
+      <div class="text-slate-700 leading-relaxed">${c.desc}</div>
+    </div>
+    <div>
+      <div class="text-xs text-slate-500 uppercase mb-2">Хуки</div>
+      <ul class="space-y-1 text-slate-700">
+        <li>• «Москва, ещё одна полезная штука...»</li>
+        <li>• «Что-то новенькое для города:»</li>
+        <li>• «Любопытный сервис подъехал:»</li>
+      </ul>
+    </div>
+    <div>
+      <div class="text-xs text-slate-500 uppercase mb-2">Что заходит</div>
+      <div class="text-slate-700">Городская польза, конкретика по районам, прямая речь от автора</div>
+    </div>
+    <div>
+      <div class="text-xs text-slate-500 uppercase mb-2">Что НЕ заходит</div>
+      <div class="text-slate-700">Корпоративный язык, общие фразы, эмодзи в избытке</div>
+    </div>
+  `;
+  document.getElementById('profilePanel').classList.remove('hidden');
+}
+
+function closeProfile() {
+  document.getElementById('profilePanel').classList.add('hidden');
+}
+
+// ── Seeding screen (streaming simulation) ─────────────────────────────────
+const seedingTexts = [
+  {
+    ch: '@moscowmap',
+    subs: '412k',
+    text: `Москва, ещё одна полезная штука от Яндекса.
+
+Теперь в Go можно заказать лекарства из аптеки за 30 минут — без беготни и лишних чеков. Работает с рецептурными и безрецептурными препаратами, в районы внутри МКАД и на ближайшее Подмосковье.
+
+По ощущениям — закрывает реальную боль, особенно когда болеешь и из дома выходить лень.`,
+    delay: 800,
+  },
+  {
+    ch: '@medach',
+    subs: '89k',
+    text: `Любопытный сервис от Яндекса для городской медицины: доставка рецептурных и безрецептурных препаратов из аптек — 30 минут от заказа до двери.
+
+Интересен механикой: интеграция напрямую с аптеками, без посредников и промежуточного хранения. Это снижает риски для термолабильных препаратов и убирает наценку, которую обычно добавляют сервисы-агрегаторы.
+
+Покрытие пока Москва и СПб. Будет интересно посмотреть на динамику в регионах.`,
+    delay: 1500,
+  },
+  {
+    ch: '@prodoctorov',
+    subs: '54k',
+    text: `Коллеги, заметка для тех, кто работает с пожилыми и маломобильными пациентами.
+
+Яндекс Go теперь возит лекарства из аптек — 30 минут от заказа. Рецептурные тоже. Покрытие: Москва, СПб.
+
+Не реклама, просто фиксирую факт: вариант для тех ситуаций, когда выписали препарат, а у пациента физически нет возможности дойти до аптеки.`,
+    delay: 2400,
+  },
+];
+
+function renderSeedingCards() {
+  const cards = seedingTexts.map((s, i) => `
+    <div class="bg-white rounded-lg border border-slate-200 p-5 fade-in" data-card="${i}">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <span class="font-medium">${s.ch}</span>
+          <span class="text-xs text-slate-500 ml-2">${s.subs}</span>
+        </div>
+        <span class="status text-xs px-2 py-1 rounded-md bg-slate-100 text-slate-500" data-status="${i}">⏳ генерится</span>
+      </div>
+      <div class="text-sm leading-relaxed whitespace-pre-wrap" contenteditable="false" data-text="${i}">
+        <div class="space-y-2">
+          <div class="skeleton h-3 w-full rounded"></div>
+          <div class="skeleton h-3 w-11/12 rounded"></div>
+          <div class="skeleton h-3 w-4/5 rounded"></div>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-3 hidden actions" data-actions="${i}">
+        <button onclick="editCard(${i})" class="text-xs px-3 py-1 border border-slate-200 rounded-md hover:bg-slate-50">✎ редактировать</button>
+        <button onclick="copyCard(${i})" class="text-xs px-3 py-1 border border-slate-200 rounded-md hover:bg-slate-50">📋 копировать</button>
+        <button onclick="regenCard(${i})" class="text-xs px-3 py-1 border border-slate-200 rounded-md hover:bg-slate-50">🔄 ещё вариант</button>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('seedingCards').innerHTML = cards;
+
+  // Simulate streaming completion
+  let done = 0;
+  seedingTexts.forEach((s, i) => {
+    setTimeout(() => {
+      const textEl = document.querySelector(`[data-text="${i}"]`);
+      textEl.innerHTML = '';
+      textEl.textContent = s.text;
+      document.querySelector(`[data-status="${i}"]`).className = 'status text-xs px-2 py-1 rounded-md bg-emerald-50 text-emerald-700';
+      document.querySelector(`[data-status="${i}"]`).textContent = '🟢 готово';
+      document.querySelector(`[data-actions="${i}"]`).classList.remove('hidden');
+      done++;
+      document.getElementById('seedingProgress').textContent = `${done} / 3 готово`;
+    }, s.delay);
+  });
+}
+
+function editCard(i) {
+  const el = document.querySelector(`[data-text="${i}"]`);
+  el.setAttribute('contenteditable', 'true');
+  el.focus();
+}
+
+function copyCard(i) {
+  const text = document.querySelector(`[data-text="${i}"]`).textContent;
+  navigator.clipboard.writeText(text);
+  const btn = event.target;
+  const oldText = btn.textContent;
+  btn.textContent = '✓ скопировано';
+  setTimeout(() => btn.textContent = oldText, 1500);
+}
+
+function regenCard(i) {
+  const btn = event.target;
+  const old = btn.textContent;
+  btn.textContent = '⏳ генерится...';
+  setTimeout(() => { btn.textContent = old; }, 1200);
+}
+
+function goToSeeding() {
+  const selectedNames = [];
+  document.querySelectorAll('.row-cb').forEach((cb, i) => {
+    if (cb.checked) selectedNames.push(channels[i].ch);
+  });
+  document.getElementById('seedingChannels').textContent = selectedNames.slice(0, 3).join(' ');
+  show('seeding');
+  renderSeedingCards();
+}
+
+// ── Perf screen (медиамониторинг) ─────────────────────────────────────────
+function runPerf() {
+  document.getElementById('perfResults').classList.add('hidden');
+  const loading = document.getElementById('perfLoading');
+  const steps = document.getElementById('perfLoadingSteps');
+  loading.classList.remove('hidden');
+
+  const stepsList = [
+    'Поиск упоминаний в СМИ и блогах (Медиалогия)...',
+    'Поиск упоминаний в Telegram (TGStat + Apify)...',
+    'Сбор комментариев из обсуждений...',
+    'Расчёт суммарных охватов...',
+    'Анализ тональности (LLM)...',
+    'Поиск аномалий и координированных постов...',
+    'Генерация сводного анализа...',
+  ];
+
+  steps.innerHTML = '';
+  let i = 0;
+  function nextStep() {
+    if (i > 0) {
+      // mark previous as done
+      const prev = steps.children[i - 1];
+      prev.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-slate-500">${stepsList[i - 1]} <span class="text-emerald-600">✓</span></span>`;
+    }
+    if (i < stepsList.length) {
+      const div = document.createElement('div');
+      div.className = 'flex items-center gap-2';
+      div.innerHTML = `<span class="w-2 h-2 rounded-full bg-indigo-500 pulse-dot"></span><span>${stepsList[i]}</span>`;
+      steps.appendChild(div);
+      i++;
+      setTimeout(nextStep, 600);
+    } else {
+      setTimeout(() => {
+        loading.classList.add('hidden');
+        document.getElementById('perfResults').classList.remove('hidden');
+      }, 400);
+    }
+  }
+  nextStep();
+}
+
+// ── Char counter ──────────────────────────────────────────────────────────
+const brief = document.getElementById('brief');
+if (brief) {
+  brief.addEventListener('input', () => {
+    document.getElementById('charCount').textContent = brief.value.length + ' знаков';
+  });
+  document.getElementById('charCount').textContent = brief.value.length + ' знаков';
+}
+
+// ── Brief screen (release editor) ─────────────────────────────────────────
+const briefVersions = {
+  1: `Яндекс запускает новый сервис доставки лекарств. Теперь пользователи смогут заказывать лекарства через приложение Go. Сервис делает покупку лекарств удобнее. Доставка работает быстро. Это уникальное предложение на российском рынке.`,
+  2: null, // заполнится после рерайта
+  3: null,
+};
+
+let briefStep = 0; // 0 = ничего, 1 = анализ показан, 2 = вопросы заданы, 3 = переписан
+
+function updateBriefStats() {
+  const v = document.getElementById('briefDraft').value;
+  const sentences = v.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
+  document.getElementById('briefChars').textContent = `${v.length} знаков · ${sentences} предложений`;
+}
+
+document.getElementById('briefDraft').addEventListener('input', updateBriefStats);
+updateBriefStats();
+
+function addBriefMsg(html, who = 'ai') {
+  const chat = document.getElementById('briefChat');
+  const bubble = document.createElement('div');
+  if (who === 'ai') {
+    bubble.className = 'fade-in bg-white border border-slate-200 rounded-lg p-3 leading-relaxed';
+  } else {
+    bubble.className = 'fade-in bg-indigo-50 border border-indigo-100 rounded-lg p-3 leading-relaxed ml-8 text-slate-800';
+  }
+  bubble.innerHTML = html;
+  chat.appendChild(bubble);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function setVerdict(label, color) {
+  const v = document.getElementById('briefVerdict');
+  v.textContent = label;
+  v.className = `text-xs px-2 py-1 rounded-md font-medium bg-${color}-50 text-${color}-700`;
+}
+
+function briefAnalyze() {
+  if (briefStep === 0) {
+    // Этап 1-2: показываем проблемы и задаём вопросы
+    addBriefMsg(`
+      <div class="text-xs font-medium text-slate-500 uppercase mb-2">⚠ Проблемы</div>
+      <ul class="space-y-1.5 text-slate-700 mb-3">
+        <li>• <span class="text-rose-700 font-medium">Нет события.</span> «Запускает новый сервис» — это что-то конкретное запускается прямо сейчас или уже работает? Когда? Где?</li>
+        <li>• <span class="text-rose-700 font-medium">Размытые формулировки.</span> «делает удобнее», «работает быстро» — без конкретики не несут смысла.</li>
+        <li>• «Уникальное предложение» — <span class="text-rose-700">маркетинговое слово</span>, по гайду Яндекса не используем.</li>
+        <li>• <span class="text-rose-700 font-medium">Нет фактуры:</span> сроки доставки, география, типы препаратов, цена, партнёры.</li>
+      </ul>
+      <div class="text-xs font-medium text-slate-500 uppercase mb-2">❓ Вопросы по фактуре</div>
+      <ol class="space-y-1.5 text-slate-700 list-decimal list-inside">
+        <li>Какой срок доставки в минутах?</li>
+        <li>География запуска — какие города/районы?</li>
+        <li>Рецептурные препараты тоже или только OTC?</li>
+        <li>С какими аптечными сетями интеграция?</li>
+        <li>Это пилотное тестирование или полноценный запуск?</li>
+      </ol>
+      <div class="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-500">
+        Перед рерайтом ответь на вопросы — без фактуры получится «вода».
+      </div>
+    `);
+    setVerdict('❌ нет новости', 'rose');
+    briefStep = 1;
+    return;
+  }
+
+  if (briefStep === 2) {
+    // Этап 4: рерайт после ответов пользователя
+    addBriefMsg(`<div class="text-xs text-slate-400">генерирую переписанный текст...</div>`);
+    setTimeout(() => {
+      const chat = document.getElementById('briefChat');
+      chat.lastChild.remove();
+      briefVersions[2] = `Яндекс Go запустил доставку лекарств за 30 минут в Москве и Санкт-Петербурге
+
+В приложении Яндекс Go появилась доставка лекарств из аптек — рецептурных и безрецептурных. Среднее время доставки — 30 минут, покрытие на старте: Москва и Санкт-Петербург в пределах основной зоны сервиса.
+
+Интеграция работает напрямую с аптечными сетями «Аптека.ру», «Ригла» и «36,6» — без посредников и промежуточного хранения. Это снижает риски для термолабильных препаратов и убирает наценку, которую обычно добавляют сервисы-агрегаторы.
+
+Для рецептурных препаратов курьер проверяет рецепт через приложение перед выдачей. Оплата проходит в Go, отдельный визит в аптеку не нужен.
+
+До конца года сервис планируется расширить ещё на 8 городов-миллионников.`;
+
+      addBriefMsg(`
+        <div class="text-xs font-medium text-slate-500 uppercase mb-2">📝 Готовый текст</div>
+        <div class="bg-slate-50 rounded-md p-3 text-slate-800 leading-relaxed text-xs whitespace-pre-wrap mb-3">${briefVersions[2]}</div>
+
+        <div class="text-xs font-medium text-slate-500 uppercase mb-2">🔧 Ключевые правки</div>
+        <ul class="space-y-1 text-slate-700 text-xs mb-3">
+          <li>• Заголовок переписан: компания + действие + объект + конкретика (30 минут, 2 города)</li>
+          <li>• Убраны «уникальное», «удобнее», «быстро» — заменены конкретикой</li>
+          <li>• Добавлен механизм (интеграция напрямую) и его польза</li>
+          <li>• Добавлен бэк про планы расширения</li>
+          <li>• Использована «ё», длинное тире, кавычки-«ёлочки»</li>
+        </ul>
+
+        <div class="text-xs font-medium text-slate-500 uppercase mb-2">📊 Финальная оценка</div>
+        <table class="w-full text-xs mb-3">
+          <thead class="text-slate-400">
+            <tr><th class="text-left font-normal pb-1">Метрика</th><th class="text-center font-normal pb-1">Исходный</th><th class="text-center font-normal pb-1">Мой</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="py-0.5">Ясность</td><td class="text-center text-rose-600">2</td><td class="text-center text-emerald-600">5</td></tr>
+            <tr><td class="py-0.5">Логика</td><td class="text-center text-rose-600">2</td><td class="text-center text-emerald-600">4</td></tr>
+            <tr><td class="py-0.5">Плотность</td><td class="text-center text-rose-600">1</td><td class="text-center text-emerald-600">4</td></tr>
+          </tbody>
+        </table>
+
+        <div class="text-xs font-medium text-slate-500 uppercase mb-2">🎯 Вердикт ИИ-Ти</div>
+        <div class="bg-emerald-50 border border-emerald-200 rounded-md p-3 mb-3">
+          <div class="font-semibold text-emerald-800 mb-1">✅ ВЫХОДИМ В PR</div>
+          <div class="text-emerald-700 text-xs leading-relaxed">
+            <strong>Почему:</strong> 4 из 5 критериев — масштаб (2 столицы → 8 городов), новизна (прямая интеграция без агрегатора), польза (было → стало: 30 мин против дороги в аптеку), влияние на бренд (расширение Go в социально значимую категорию). AI-вклада нет, но достаточно остальных.
+            <br><br>
+            <strong>Риски:</strong> возможные вопросы от регулятора (отпуск рецептурных через приложение) — стоит проверить с GR перед публикацией.
+          </div>
+        </div>
+        <button onclick="briefToMatch()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+          → Утвердить релиз и перейти к Подбору каналов
+        </button>
+      `);
+      setVerdict('✅ выходим в PR', 'emerald');
+      document.querySelector('[data-v="2"]').classList.remove('hidden');
+      briefStep = 3;
+      // Подставляем переписанный текст в textarea как v2
+      document.getElementById('briefDraft').value = briefVersions[2];
+      document.getElementById('briefVersion').textContent = 'v2 · после рерайта';
+      updateBriefStats();
+    }, 1500);
+  }
+}
+
+function briefSend() {
+  const input = document.getElementById('briefInput');
+  const text = input.value.trim();
+  if (!text) return;
+  addBriefMsg(text.replace(/</g, '&lt;'), 'user');
+  input.value = '';
+
+  // Простой mock: если пользователь ответил на вопросы — переходим к рерайту
+  if (briefStep === 1) {
+    setTimeout(() => {
+      addBriefMsg(`Спасибо, фактуры достаточно. Теперь могу переписать под стандарт Яндекса — нажми <span class="font-medium">«🔍 Проанализировать»</span> ещё раз, либо <span class="font-medium">«✎ Перепиши»</span> в быстрых кнопках.`);
+      briefStep = 2;
+    }, 500);
+  } else if (briefStep === 2 || briefStep === 3) {
+    setTimeout(() => briefAnalyze(), 500);
+  } else {
+    setTimeout(() => {
+      addBriefMsg(`Уточнил. Если хочешь — могу переписать с учётом этого: жми «✎ Перепиши».`);
+    }, 500);
+  }
+}
+
+function briefQuick(text) {
+  document.getElementById('briefInput').value = text;
+  briefSend();
+}
+
+function briefShowVersion(v) {
+  if (briefVersions[v]) {
+    document.getElementById('briefDraft').value = briefVersions[v];
+    document.getElementById('briefVersion').textContent = `v${v} · ${v === 1 ? 'исходник' : 'после рерайта'}`;
+    updateBriefStats();
+  }
+}
+
+function briefToMatch() {
+  // переносим финальный текст в Match
+  document.getElementById('brief').value = document.getElementById('briefDraft').value;
+  show('match');
+}
+
+// ── Initial state ─────────────────────────────────────────────────────────
+show('projects');
+renderRows();
+// pre-select 3 for demo
+setTimeout(() => {
+  document.querySelectorAll('.row-cb').forEach((cb, i) => { if (i < 3) cb.checked = true; });
+  updateSelection();
+}, 100);
+</script>
+</body>
+</html>
