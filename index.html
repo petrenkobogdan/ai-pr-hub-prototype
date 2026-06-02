@@ -827,7 +827,7 @@ const libraryTools = [
     typeLabel: '✨ Скилл',
     platform: 'Универсальный',
     author: 'PR-стратегия',
-    description: 'Строит визуальную карту: ЦА → ключевые сообщения → каналы → ожидаемая реакция. Помогает не упустить аудитории при подготовке запуска.',
+    description: '',
     inputs: 'Тезисы релиза + цели коммуникации',
     outputs: 'Интерактивная карта + список действий',
     status: 'beta',
@@ -1086,7 +1086,7 @@ function renderLibrary() {
           <span class="text-xs text-slate-500">${t.typeLabel}</span>
         </div>
         <h3 class="font-semibold text-sm mb-2 leading-snug">${t.title}</h3>
-        <p class="text-xs text-slate-600 leading-relaxed mb-3 line-clamp-3">${t.description}</p>
+        ${t.description ? `<p class="text-xs text-slate-600 leading-relaxed mb-3 line-clamp-3">${t.description}</p>` : '<div class="mb-3"></div>'}
         <div class="text-xs text-slate-400 space-y-0.5 pt-3 border-t border-slate-100">
           <div><span class="text-slate-500">Автор:</span> Иван Иванов (Портал)</div>
           ${t.schedule ? `<div><span class="text-slate-500">⏱</span> ${t.schedule}</div>` : ''}
@@ -1119,10 +1119,10 @@ function openLibTool(id) {
   if (!t) return;
   const html = `
     <div class="space-y-4">
-      <div>
+      ${t.description ? `<div>
         <div class="text-xs text-slate-500 uppercase mb-1">Описание</div>
         <div class="text-sm text-slate-700">${t.description}</div>
-      </div>
+      </div>` : ''}
       <div>
         <div class="text-xs text-slate-500 uppercase mb-1">Что на входе</div>
         <div class="text-sm text-slate-700">${t.inputs}</div>
