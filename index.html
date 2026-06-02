@@ -649,7 +649,7 @@ const libraryTools = [
   },
   {
     id: 'trendwatch',
-    title: 'AI-трендвотчинг по Поиску',
+    title: 'Тренды в Поиске Яндекса',
     type: 'monitor',
     typeLabel: '🔔 Мониторинг',
     platform: 'Яндекс Поиск',
@@ -1050,17 +1050,35 @@ function openProject(id) {
 // ── Library rendering ─────────────────────────────────────────────────────
 function renderLibrary() {
   const grid = document.getElementById('libGrid');
-  const filtered = libraryTools.filter(t => {
-    if (libFilter.type !== 'all' && t.type !== libFilter.type) return false;
-    if (libFilter.search) {
-      const q = libFilter.search.toLowerCase();
-      if (!t.title.toLowerCase().includes(q)
-        && !t.description.toLowerCase().includes(q)
-        && !t.platform.toLowerCase().includes(q)
-        && !t.author.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
+
+  // Приоритетные инструменты — поднимаем наверх (в порядке указания)
+  const priorityOrder = [
+    'release-evidence',
+    'interview-risks',
+    'crisis-alerts',
+    'factcheck',
+    'ping-pong',
+    'video-mentions',
+    'tg-attitude',
+  ];
+  const priorityIdx = (id) => {
+    const i = priorityOrder.indexOf(id);
+    return i === -1 ? 999 : i;
+  };
+
+  const filtered = libraryTools
+    .filter(t => {
+      if (libFilter.type !== 'all' && t.type !== libFilter.type) return false;
+      if (libFilter.search) {
+        const q = libFilter.search.toLowerCase();
+        if (!t.title.toLowerCase().includes(q)
+          && !t.description.toLowerCase().includes(q)
+          && !t.platform.toLowerCase().includes(q)
+          && !t.author.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => priorityIdx(a.id) - priorityIdx(b.id));
 
   const statusBadge = (s) => {
     if (s === 'ready')   return '<span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">🟢 готов</span>';
