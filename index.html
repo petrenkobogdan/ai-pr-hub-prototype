@@ -26,8 +26,11 @@
         <span class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-sm">AI</span>
         <span>PR hub</span>
       </button>
+      <nav class="flex gap-1">
+        <button onclick="show('projects')" class="global-nav px-3 py-1.5 rounded-md text-sm font-medium" data-screen="projects">📁 Проекты</button>
+        <button onclick="show('library')"  class="global-nav px-3 py-1.5 rounded-md text-sm font-medium" data-screen="library">🧰 Библиотека</button>
+      </nav>
       <div id="projectContext" class="hidden items-center gap-3 text-sm border-l border-slate-200 pl-6">
-        <button onclick="show('projects')" class="text-slate-500 hover:text-slate-700">← Проекты</button>
         <span class="text-slate-300">/</span>
         <span id="currentProjectName" class="font-medium text-slate-800"></span>
       </div>
@@ -79,6 +82,34 @@
   </div>
 
   <div id="projectsList" class="grid grid-cols-1 gap-3"></div>
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN: LIBRARY (библиотека навыков и инструментов)                    -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<main id="screen-library" class="screen max-w-6xl mx-auto px-6 py-8 hidden">
+  <div class="flex items-center justify-between mb-2">
+    <div>
+      <h1 class="text-2xl font-semibold">Библиотека</h1>
+      <p class="text-slate-500 text-sm mt-1">Навыки, мониторинги и аналитика — всё, что собрала команда. Каждый инструмент может работать отдельно или подключаться к проектам.</p>
+    </div>
+    <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+      + Предложить инструмент
+    </button>
+  </div>
+
+  <div class="bg-white rounded-lg border border-slate-200 p-3 mb-4 flex gap-2 items-center">
+    <span class="text-slate-400 pl-2">🔍</span>
+    <input id="libSearch" type="text" oninput="filterLibrary(this.value)" placeholder="Поиск по названию или платформе..." class="flex-1 px-2 py-1.5 text-sm focus:outline-none">
+    <div class="flex gap-1">
+      <button onclick="filterLibType('all')"        class="lib-type-btn px-3 py-1 rounded text-sm font-medium" data-type="all">Все</button>
+      <button onclick="filterLibType('skill')"      class="lib-type-btn px-3 py-1 rounded text-sm font-medium" data-type="skill">✨ Скиллы</button>
+      <button onclick="filterLibType('monitor')"    class="lib-type-btn px-3 py-1 rounded text-sm font-medium" data-type="monitor">🔔 Мониторинги</button>
+      <button onclick="filterLibType('analytics')"  class="lib-type-btn px-3 py-1 rounded text-sm font-medium" data-type="analytics">📊 Аналитика</button>
+    </div>
+  </div>
+
+  <div id="libGrid" class="grid grid-cols-2 lg:grid-cols-3 gap-3"></div>
 </main>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -602,15 +633,133 @@ const projects = [
 let currentProject = null;
 let projectFilters = { search: '', status: 'all' };
 
+// ── Library tools ─────────────────────────────────────────────────────────
+const libraryTools = [
+  {
+    id: 'twitch-comments',
+    title: 'Аналитика комментариев к Twitch-стримам',
+    type: 'analytics',
+    typeLabel: '📊 Аналитика',
+    platform: 'Twitch',
+    author: 'Команда Streamhub',
+    description: 'Собирает чат стрима, кластеризует реплики, выдаёт топ-темы и тональность. Полезно после крупных трансляций и интеграций.',
+    inputs: 'Ссылка на стрим / VOD',
+    outputs: 'Отчёт с топ-кластерами, эмоциональный фон, аномалии',
+    status: 'ready',
+  },
+  {
+    id: 'trendwatch',
+    title: 'AI-трендвотчинг по Поиску',
+    type: 'monitor',
+    typeLabel: '🔔 Мониторинг',
+    platform: 'Яндекс Поиск',
+    author: 'Команда Поиска',
+    description: 'Ежедневная сводка тем, набравших популярность в поисковых запросах. Помогает ловить инфоповоды на старте волны.',
+    inputs: 'Тематика / категория',
+    outputs: 'Утренний дайджест с трендами + ссылки на источники',
+    status: 'ready',
+    schedule: 'ежедневно 08:00',
+  },
+  {
+    id: 'habr-monitor',
+    title: 'Мониторинг упоминаний Яндекса на Хабре',
+    type: 'monitor',
+    typeLabel: '🔔 Мониторинг',
+    platform: 'Habr',
+    author: 'PR-команда',
+    description: 'Отслеживает статьи и комментарии с упоминаниями продуктов Яндекса. Фильтрует негатив, нейтральные и позитивные.',
+    inputs: 'Список продуктов',
+    outputs: 'Дашборд + алерты на негатив в Telegram',
+    status: 'ready',
+    schedule: 'каждый час',
+  },
+  {
+    id: 'habr-to-tg',
+    title: 'Анонсы статей с Хабра в Telegram',
+    type: 'skill',
+    typeLabel: '✨ Скилл',
+    platform: 'Habr → TG',
+    author: 'Богдан Петренко',
+    description: 'Берёт статью с Хабра, выдаёт короткий анонс в стиле TG-канала с хуком и CTA. Учитывает специфику читателя.',
+    inputs: 'Ссылка на статью + целевой канал',
+    outputs: 'Готовый пост 200-400 знаков',
+    status: 'ready',
+  },
+  {
+    id: 'pikabu-posts',
+    title: 'Превращение новостей в посты на Пикабу',
+    type: 'skill',
+    typeLabel: '✨ Скилл',
+    platform: 'Пикабу',
+    author: 'Команда коммерческих коммуникаций',
+    description: 'Адаптирует новость под TOV Пикабу: разговорный язык, эмоциональный хук, мемная подача без потери фактуры.',
+    inputs: 'Текст новости + ссылки',
+    outputs: 'Пост в формате Пикабу с тегами',
+    status: 'beta',
+  },
+  {
+    id: 'press-release-editor',
+    title: 'ИИ-Чистякова: редактор пресс-релизов',
+    type: 'skill',
+    typeLabel: '✨ Скилл',
+    platform: 'Универсальный',
+    author: 'Команда внутренних коммуникаций',
+    description: 'Чистит стиль по стандарту Яндекса, проверяет на новость, ставит вердикт ИИ-Ти. Используется в шаге «Релизы» хаба.',
+    inputs: 'Черновик релиза',
+    outputs: 'Переписанный текст + оценка + риски',
+    status: 'ready',
+  },
+  {
+    id: 'tg-channel-audit',
+    title: 'Аудит TG-каналов на накрутку',
+    type: 'analytics',
+    typeLabel: '📊 Аналитика',
+    platform: 'Telegram',
+    author: 'PR-команда',
+    description: 'Проверяет канал на признаки накрутки подписчиков, охватов, ER. Используется в шаге «Подбор каналов» хаба.',
+    inputs: '@channel или ссылка',
+    outputs: 'Светофор + детали по каждому риску',
+    status: 'ready',
+  },
+  {
+    id: 'vk-trends',
+    title: 'Тренды ВКонтакте по продуктам',
+    type: 'monitor',
+    typeLabel: '🔔 Мониторинг',
+    platform: 'ВКонтакте',
+    author: 'SMM Яндекс Музыки',
+    description: 'Сводка обсуждений продуктов в группах ВК, всплески активности, ключевые посты.',
+    inputs: 'Список продуктов / брендов',
+    outputs: 'Еженедельный отчёт + алерты',
+    status: 'beta',
+    schedule: 'еженедельно по понедельникам',
+  },
+  {
+    id: 'media-overview',
+    title: 'Сводка по медиаприсутствию за неделю',
+    type: 'analytics',
+    typeLabel: '📊 Аналитика',
+    platform: 'СМИ + TG + Habr + VK',
+    author: 'PR-команда',
+    description: 'Агрегирует все упоминания за период, считает суммарный охват, тональность, делит по продуктам и темам.',
+    inputs: 'Период',
+    outputs: 'PDF/PPTX отчёт',
+    status: 'planned',
+  },
+];
+
+let libFilter = { search: '', type: 'all' };
+
 // ── Navigation ────────────────────────────────────────────────────────────
 function show(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   document.getElementById('screen-' + name).classList.remove('hidden');
 
-  // Контекстный header: проекты — без контекста, остальные — с навигацией шагов
   const projectNav = document.getElementById('projectNav');
   const projectContext = document.getElementById('projectContext');
-  if (name === 'projects' || !currentProject) {
+  const isGlobal = (name === 'projects' || name === 'library');
+
+  if (isGlobal || !currentProject) {
     projectNav.classList.add('hidden');
     projectNav.classList.remove('flex');
     projectContext.classList.add('hidden');
@@ -630,9 +779,22 @@ function show(name) {
       b.className = 'nav-btn px-3 py-1.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100';
     }
   });
+
+  // Подсветка глобальной навигации (Проекты / Библиотека)
+  document.querySelectorAll('.global-nav').forEach(b => {
+    const active = (b.dataset.screen === name)
+                || (b.dataset.screen === 'projects' && !isGlobal);
+    if (active) {
+      b.className = 'global-nav px-3 py-1.5 rounded-md text-sm font-medium bg-indigo-50 text-indigo-700';
+    } else {
+      b.className = 'global-nav px-3 py-1.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100';
+    }
+  });
+
   closeProfile();
 
   if (name === 'projects') renderProjects();
+  if (name === 'library')  renderLibrary();
 }
 
 // ── Projects ──────────────────────────────────────────────────────────────
@@ -710,6 +872,99 @@ function openProject(id) {
   const order = ['brief', 'match', 'seeding', 'perf'];
   const firstPending = order.find(s => currentProject.progress[s] !== 'done');
   show(firstPending || 'perf');
+}
+
+// ── Library rendering ─────────────────────────────────────────────────────
+function renderLibrary() {
+  const grid = document.getElementById('libGrid');
+  const filtered = libraryTools.filter(t => {
+    if (libFilter.type !== 'all' && t.type !== libFilter.type) return false;
+    if (libFilter.search) {
+      const q = libFilter.search.toLowerCase();
+      if (!t.title.toLowerCase().includes(q)
+        && !t.description.toLowerCase().includes(q)
+        && !t.platform.toLowerCase().includes(q)
+        && !t.author.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const statusBadge = (s) => {
+    if (s === 'ready')   return '<span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">🟢 готов</span>';
+    if (s === 'beta')    return '<span class="text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-700">🟡 бета</span>';
+    if (s === 'planned') return '<span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-500">⚪ в планах</span>';
+    return '';
+  };
+
+  grid.innerHTML = filtered.length === 0
+    ? '<div class="col-span-3 bg-white border border-slate-200 rounded-lg p-12 text-center text-slate-400 text-sm">Ничего не найдено</div>'
+    : filtered.map(t => `
+      <div onclick="openLibTool('${t.id}')" class="bg-white rounded-lg border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm cursor-pointer transition-all fade-in">
+        <div class="flex items-start justify-between mb-2">
+          <span class="text-xs text-slate-500">${t.typeLabel}</span>
+          ${statusBadge(t.status)}
+        </div>
+        <h3 class="font-semibold text-sm mb-2 leading-snug">${t.title}</h3>
+        <p class="text-xs text-slate-600 leading-relaxed mb-3 line-clamp-3">${t.description}</p>
+        <div class="text-xs text-slate-400 space-y-0.5 pt-3 border-t border-slate-100">
+          <div><span class="text-slate-500">Платформа:</span> ${t.platform}</div>
+          <div><span class="text-slate-500">Автор:</span> ${t.author}</div>
+          ${t.schedule ? `<div><span class="text-slate-500">⏱</span> ${t.schedule}</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+
+  // Update filter button styles
+  document.querySelectorAll('.lib-type-btn').forEach(b => {
+    if (b.dataset.type === libFilter.type) {
+      b.className = 'lib-type-btn px-3 py-1 rounded text-sm font-medium bg-indigo-50 text-indigo-700';
+    } else {
+      b.className = 'lib-type-btn px-3 py-1 rounded text-sm font-medium text-slate-600 hover:bg-slate-100';
+    }
+  });
+}
+
+function filterLibrary(q) {
+  libFilter.search = q;
+  renderLibrary();
+}
+
+function filterLibType(t) {
+  libFilter.type = t;
+  renderLibrary();
+}
+
+function openLibTool(id) {
+  const t = libraryTools.find(x => x.id === id);
+  if (!t) return;
+  const html = `
+    <div class="space-y-4">
+      <div>
+        <div class="text-xs text-slate-500 uppercase mb-1">Описание</div>
+        <div class="text-sm text-slate-700">${t.description}</div>
+      </div>
+      <div>
+        <div class="text-xs text-slate-500 uppercase mb-1">Что на входе</div>
+        <div class="text-sm text-slate-700">${t.inputs}</div>
+      </div>
+      <div>
+        <div class="text-xs text-slate-500 uppercase mb-1">Что на выходе</div>
+        <div class="text-sm text-slate-700">${t.outputs}</div>
+      </div>
+      <div class="pt-3 border-t border-slate-100 grid grid-cols-2 gap-3 text-xs">
+        <div><span class="text-slate-500">Тип:</span> <span class="text-slate-700">${t.typeLabel}</span></div>
+        <div><span class="text-slate-500">Платформа:</span> <span class="text-slate-700">${t.platform}</span></div>
+        <div><span class="text-slate-500">Автор:</span> <span class="text-slate-700">${t.author}</span></div>
+        ${t.schedule ? `<div><span class="text-slate-500">Расписание:</span> <span class="text-slate-700">${t.schedule}</span></div>` : ''}
+      </div>
+      <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium ${t.status === 'planned' ? 'opacity-50 cursor-not-allowed' : ''}" ${t.status === 'planned' ? 'disabled' : ''}>
+        ${t.status === 'planned' ? 'В разработке' : '▶ Запустить'}
+      </button>
+    </div>
+  `;
+  document.getElementById('profileTitle').textContent = t.title;
+  document.getElementById('profileBody').innerHTML = html;
+  document.getElementById('profilePanel').classList.remove('hidden');
 }
 
 function newProject() {
@@ -1143,8 +1398,120 @@ function briefSend() {
 }
 
 function briefQuick(text) {
+  // Спецсценарии для готовых кнопок — не идут через обычный chat-flow
+  if (text === 'Усиль вердикт ИИ-Ти') {
+    briefStrict();
+    return;
+  }
+  if (text === 'Какие риски?') {
+    briefRisks();
+    return;
+  }
   document.getElementById('briefInput').value = text;
   briefSend();
+}
+
+function briefStrict() {
+  addBriefMsg(`Ок, перехожу в строгий режим: оцениваю как редактор Tier-1 СМИ, без скидок.`, 'ai');
+  setTimeout(() => {
+    addBriefMsg(`
+      <div class="text-xs font-medium text-slate-500 uppercase mb-2">📉 Пересмотренные оценки</div>
+      <table class="w-full text-xs mb-3">
+        <thead class="text-slate-400">
+          <tr><th class="text-left font-normal pb-1">Метрика</th><th class="text-center font-normal pb-1">Было</th><th class="text-center font-normal pb-1">Стало</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="py-0.5">Ясность</td><td class="text-center text-emerald-600">5</td><td class="text-center text-amber-600">4</td></tr>
+          <tr><td class="py-0.5">Логика</td><td class="text-center text-emerald-600">4</td><td class="text-center text-amber-600">3</td></tr>
+          <tr><td class="py-0.5">Плотность</td><td class="text-center text-emerald-600">4</td><td class="text-center text-amber-600">3</td></tr>
+        </tbody>
+      </table>
+
+      <div class="text-xs font-medium text-slate-500 uppercase mb-2">🔻 Почему ниже</div>
+      <ul class="space-y-1.5 text-slate-700 text-xs mb-3">
+        <li>• <strong>Логика −1:</strong> непонятно, что отличает запуск от существующих сервисов («Все Аптеки», «Сбер Еаптека»). Без явного отстройного аргумента — это «ещё один сервис доставки лекарств».</li>
+        <li>• <strong>Плотность −1:</strong> в тексте 5 абзацев на ~600 знаков лида, но конкурентная позиция и масштаб эффекта (сколько людей выиграют?) не раскрыты. Tier-1 СМИ потребует данные.</li>
+        <li>• <strong>Ясность −1:</strong> упоминание «прямой интеграции» как уникального преимущества — это техническая деталь, читателю безразлична. Польза должна быть в человеческих терминах.</li>
+      </ul>
+
+      <div class="text-xs font-medium text-slate-500 uppercase mb-2">🎯 Вердикт ИИ-Ти в строгом режиме</div>
+      <div class="bg-amber-50 border border-amber-200 rounded-md p-3 mb-3">
+        <div class="font-semibold text-amber-800 mb-1">⚠ НУЖНО УКРУПНЯТЬ</div>
+        <div class="text-amber-800 text-xs leading-relaxed">
+          В строгой оценке хватает только 2 критериев из 5: <strong>польза</strong> (30 минут — реальное преимущество) и <strong>масштаб</strong> (2 столицы → 8 городов). Не хватает: новизны (рынок уже занят), AI-вклада (его нет), значимого влияния на бренд (это не флагман).
+          <br><br>
+          <strong>Рекомендация:</strong> либо добавить новизну (например, «первая интеграция без посредников» — если это так и проверяемо), либо подождать момент выхода в 5+ городов и подать как масштабный запуск.
+        </div>
+      </div>
+
+      <div class="text-xs text-slate-500 leading-relaxed">
+        💡 В мягком режиме это «✅ ВЫХОДИМ в PR» — Tier-3 СМИ возьмут с удовольствием. Но если цель — РБК, Forbes, Коммерсант, то в текущем виде они откажут или поставят коротким интертом.
+      </div>
+    `);
+    setVerdict('⚠ нужно укрупнять', 'amber');
+  }, 700);
+}
+
+function briefRisks() {
+  addBriefMsg(`Разбираю риски по 4 направлениям.`, 'ai');
+  setTimeout(() => {
+    addBriefMsg(`
+      <div class="text-xs font-medium text-slate-500 uppercase mb-2">⚠ Карта рисков</div>
+
+      <div class="space-y-2.5 mb-3">
+        <div class="border-l-4 border-rose-400 bg-rose-50 p-3 rounded">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold text-rose-800">🏛 GR (регуляторика)</span>
+            <span class="text-xs text-rose-600 font-medium">высокий</span>
+          </div>
+          <div class="text-xs text-slate-700 leading-relaxed">
+            Отпуск <strong>рецептурных препаратов</strong> через приложение — серая зона по 61-ФЗ «Об обращении лекарственных средств». Минздрав может затребовать пояснения. Курьеры технически не имеют права отпускать Rx.
+            <br><br>
+            <strong>Что делать:</strong> до публикации согласовать с GR. Возможно, в первой коммуникации убрать упоминание рецептурных, оставить только OTC.
+          </div>
+        </div>
+
+        <div class="border-l-4 border-amber-400 bg-amber-50 p-3 rounded">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold text-amber-800">📢 Имиджевые</span>
+            <span class="text-xs text-amber-600 font-medium">средний</span>
+          </div>
+          <div class="text-xs text-slate-700 leading-relaxed">
+            «Яндекс заходит в фарму» — возможен нарратив «корпорация захватывает аптечный рынок» (особенно у Варламова, Гонжо, Mash). Также: вопросы о приватности (что Яндекс знает о моих лекарствах?).
+            <br><br>
+            <strong>Что делать:</strong> заранее подготовить FAQ по приватности данных, провентилировать ключевых блогеров про-актив.
+          </div>
+        </div>
+
+        <div class="border-l-4 border-amber-400 bg-amber-50 p-3 rounded">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold text-amber-800">🏭 Продуктовые</span>
+            <span class="text-xs text-amber-600 font-medium">средний</span>
+          </div>
+          <div class="text-xs text-slate-700 leading-relaxed">
+            «30 минут» — обещание, которое легко сломать в пиковые часы и непогоду. Если в первые недели медиа возьмут реальный замер и получат 2 часа — будет негативная история.
+            <br><br>
+            <strong>Что делать:</strong> в тексте смягчить — «обычно около 30 минут» или «среднее время — 30 минут». Подготовить операционный план на пики.
+          </div>
+        </div>
+
+        <div class="border-l-4 border-slate-300 bg-slate-50 p-3 rounded">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold text-slate-700">🤼 Конкурентные</span>
+            <span class="text-xs text-slate-600 font-medium">низкий</span>
+          </div>
+          <div class="text-xs text-slate-700 leading-relaxed">
+            Реакция «Все Аптеки» и «Сбер Еаптеки»: возможен ответный анонс снижения сроков или цен. Это нормально и даже выгодно — масштабирует категорию.
+          </div>
+        </div>
+      </div>
+
+      <div class="text-xs font-medium text-slate-500 uppercase mb-2">📋 Итог</div>
+      <div class="text-xs text-slate-700 leading-relaxed">
+        Основной риск — <strong>GR по рецептурным</strong>. До публикации обязательно сверка с юристами и GR-командой. Остальное лечится подготовкой FAQ и осторожными формулировками.
+      </div>
+    `);
+  }, 700);
 }
 
 function briefShowVersion(v) {
