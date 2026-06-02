@@ -14,6 +14,7 @@
   .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.6s infinite; }
   @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
   [contenteditable]:focus { outline: 2px solid #6366f1; outline-offset: 2px; border-radius: 4px; }
+  #screen-chat:not(.hidden) { display: flex; }
 </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
@@ -27,6 +28,7 @@
         <span>PR hub</span>
       </button>
       <nav class="flex gap-1">
+        <button onclick="show('chat')"     class="global-nav px-3 py-1.5 rounded-md text-sm font-medium" data-screen="chat">💬 Чат</button>
         <button onclick="show('projects')" class="global-nav px-3 py-1.5 rounded-md text-sm font-medium" data-screen="projects">📁 Проекты</button>
         <button onclick="show('library')"  class="global-nav px-3 py-1.5 rounded-md text-sm font-medium" data-screen="library">🧰 Библиотека</button>
       </nav>
@@ -49,6 +51,58 @@
     </div>
   </div>
 </header>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN: CHAT (центральный AI-чат — точка входа в скиллы и инструменты) -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<main id="screen-chat" class="screen max-w-3xl mx-auto px-6 py-6 hidden" style="height: calc(100vh - 100px); flex-direction: column;">
+
+  <!-- Контекст активного навыка (если запущен) -->
+  <div id="chatSkillContext" class="hidden mb-3 bg-violet-50 border border-violet-200 rounded-lg p-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="w-8 h-8 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-sm">✨</span>
+      <div>
+        <div class="text-xs text-violet-700 font-medium uppercase tracking-wide">Активирован навык</div>
+        <div id="chatSkillName" class="text-sm font-semibold text-slate-800"></div>
+      </div>
+    </div>
+    <button onclick="exitSkill()" class="text-xs text-slate-500 hover:text-slate-700 px-2 py-1 rounded hover:bg-white">✕ выйти</button>
+  </div>
+
+  <!-- Тред чата -->
+  <div id="chatThread" class="flex-1 overflow-y-auto bg-white rounded-lg border border-slate-200 p-5 mb-3 space-y-3"></div>
+
+  <!-- Поле ввода -->
+  <div class="bg-white rounded-lg border border-slate-200 p-3">
+    <div class="flex gap-2">
+      <textarea id="chatInput" rows="2" placeholder="Опиши задачу — найду подходящий навык или инструмент..." class="flex-1 px-3 py-2 text-sm focus:outline-none resize-none"></textarea>
+      <button onclick="chatSend()" class="bg-slate-900 hover:bg-slate-700 text-white px-4 py-2 rounded-md text-sm self-end">↑ Отправить</button>
+    </div>
+    <div id="chatExamples" class="flex flex-wrap gap-1.5 mt-2">
+      <button onclick="chatExample('Мне нужно оценить релиз на плотность доказательств')" class="text-xs px-2 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600">оценить релиз</button>
+      <button onclick="chatExample('Хочу проверить факты в моём тексте')" class="text-xs px-2 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600">фактчекинг</button>
+      <button onclick="chatExample('Настрой мониторинг негативных упоминаний')" class="text-xs px-2 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600">мониторинг негатива</button>
+      <button onclick="chatExample('Проверь канал @medach на отношение к Яндексу')" class="text-xs px-2 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600">анализ TG-канала</button>
+      <button onclick="chatExample('Помоги придумать идеи для запуска')" class="text-xs px-2 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600">брейнштоrm</button>
+    </div>
+  </div>
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN: TOOL-VIEW (заглушка UX инструмента из библиотеки)              -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<main id="screen-tool" class="screen max-w-5xl mx-auto px-6 py-8 hidden">
+  <button onclick="show('library')" class="text-sm text-slate-500 hover:text-slate-700 mb-4">← Вернуться в Библиотеку</button>
+  <div class="flex items-start justify-between mb-6">
+    <div>
+      <div id="toolType" class="text-xs text-slate-500 uppercase tracking-wide mb-1"></div>
+      <h1 id="toolTitle" class="text-2xl font-semibold"></h1>
+      <p id="toolDesc" class="text-slate-500 text-sm mt-2 max-w-2xl"></p>
+    </div>
+  </div>
+
+  <div id="toolBody" class="bg-white rounded-lg border border-slate-200 p-6"></div>
+</main>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 <!-- SCREEN: PROJECTS (главная — список проектов)                            -->
@@ -968,6 +1022,7 @@ function show(name) {
 
   if (name === 'projects') renderProjects();
   if (name === 'library')  renderLibrary();
+  if (name === 'chat' && !activeSkill && !document.getElementById('chatThread').children.length) chatGreet();
 }
 
 // ── Projects ──────────────────────────────────────────────────────────────
@@ -1082,8 +1137,11 @@ function renderLibrary() {
     ? '<div class="col-span-3 bg-white border border-slate-200 rounded-lg p-12 text-center text-slate-400 text-sm">Ничего не найдено</div>'
     : filtered.map(t => `
       <div onclick="openLibTool('${t.id}')" class="bg-white rounded-lg border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm cursor-pointer transition-all fade-in">
-        <div class="mb-2">
+        <div class="flex items-center justify-between mb-2">
           <span class="text-xs text-slate-500">${t.typeLabel}</span>
+          ${t.type === 'skill'
+            ? '<span class="text-xs px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">💬 в чате</span>'
+            : '<span class="text-xs px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700">🛠 свой UX</span>'}
         </div>
         <h3 class="font-semibold text-sm mb-2 leading-snug">${t.title}</h3>
         ${t.description ? `<p class="text-xs text-slate-600 leading-relaxed mb-3 line-clamp-3">${t.description}</p>` : '<div class="mb-3"></div>'}
@@ -1114,6 +1172,238 @@ function filterLibType(t) {
   renderLibrary();
 }
 
+// ── Chat (central AI router) ──────────────────────────────────────────────
+let activeSkill = null;
+
+function chatGreet() {
+  const thread = document.getElementById('chatThread');
+  thread.innerHTML = `
+    <div class="fade-in flex items-start gap-3">
+      <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm flex-shrink-0">🤖</span>
+      <div class="bg-slate-50 rounded-lg p-3 text-sm text-slate-700 leading-relaxed">
+        Привет! Я центральная точка входа в AI PR hub. Опиши задачу своими словами — подберу подходящий навык или инструмент.
+        <div class="mt-2 text-xs text-slate-500">
+          💡 Можешь использовать примеры внизу или начать новый проект через <a href="#" onclick="show('projects');return false;" class="text-indigo-600 hover:underline">📁 Проекты</a>.
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function chatAddUser(text) {
+  const thread = document.getElementById('chatThread');
+  const div = document.createElement('div');
+  div.className = 'fade-in flex items-start gap-3 justify-end';
+  div.innerHTML = `
+    <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-sm text-slate-800 max-w-xl">${escapeHTML(text)}</div>
+    <span class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-sm flex-shrink-0">Б</span>
+  `;
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function chatAddAi(html) {
+  const thread = document.getElementById('chatThread');
+  const div = document.createElement('div');
+  div.className = 'fade-in flex items-start gap-3';
+  div.innerHTML = `
+    <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm flex-shrink-0">🤖</span>
+    <div class="bg-slate-50 rounded-lg p-3 text-sm text-slate-700 leading-relaxed flex-1 max-w-2xl">${html}</div>
+  `;
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function escapeHTML(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Простой keyword-матчинг: какие скиллы/инструменты подходят под запрос
+function findMatches(query) {
+  const q = query.toLowerCase();
+  const kw = (...keys) => keys.some(k => q.includes(k));
+
+  const matches = [];
+  if (kw('релиз', 'доказательств', 'плотность')) matches.push('release-evidence');
+  if (kw('релиз', 'оцен', 'качеств')) matches.push('press-release-editor');
+  if (kw('факт', 'провер'))                       matches.push('factcheck');
+  if (kw('риск', 'интервью'))                     matches.push('interview-risks');
+  if (kw('негатив', 'кризис', 'алерт', 'тревог')) matches.push('crisis-alerts');
+  if (kw('мониторинг', 'упоминан'))               matches.push('crisis-alerts', 'habr-monitor', 'it-thoughtleaders');
+  if (kw('хабр'))                                 matches.push('habr-monitor', 'habr-to-tg');
+  if (kw('пикабу'))                               matches.push('pikabu-posts');
+  if (kw('тренд', 'поиск'))                       matches.push('trendwatch');
+  if (kw('telegram', 'tg', 'канал', '@'))         matches.push('tg-attitude', 'tg-channel-audit');
+  if (kw('коммент'))                              matches.push('comments-express', 'twitch-comments');
+  if (kw('twitch', 'стрим'))                      matches.push('twitch-comments');
+  if (kw('видео', 'youtube', 'дзен'))             matches.push('video-mentions');
+  if (kw('идеи', 'брейн', 'мозговой', 'штор'))    matches.push('ping-pong');
+  if (kw('коллабораци', 'партн'))                 matches.push('collab-fit');
+  if (kw('синтет', 'респонд', 'аудитор'))         matches.push('synthetic-respondents');
+  if (kw('соцсет', 'подвод', 'пост'))             matches.push('social-teasers');
+  if (kw('доклад', 'выступлен', 'расшифров'))     matches.push('talk-to-post');
+  if (kw('лидер мнен', 'инфлюенс'))               matches.push('it-thoughtleaders');
+  if (kw('карта', 'стратеги'))                    matches.push('pr-map');
+  if (kw('сводк', 'дайджест'))                    matches.push('tech-weekly', 'media-overview');
+
+  // Дедуп с сохранением порядка
+  const seen = new Set();
+  return matches.filter(id => !seen.has(id) && seen.add(id));
+}
+
+function chatRespond(text) {
+  // Если внутри активного скилла — это не «найти инструмент», а работа в нём
+  if (activeSkill) {
+    setTimeout(() => {
+      chatAddAi(`Принял. Работаю над задачей в режиме скилла «<strong>${activeSkill.title}</strong>». В реальном продукте здесь будет полноценный ответ модели по специально подготовленному промпту.<br><br><span class="text-xs text-slate-500">Это демо — реального LLM-вызова пока нет.</span>`);
+    }, 600);
+    return;
+  }
+
+  const ids = findMatches(text);
+  if (ids.length === 0) {
+    setTimeout(() => {
+      chatAddAi(`Не нашёл подходящий навык под этот запрос. Попробуй переформулировать — например, что именно нужно проверить, оценить, найти или сделать. Можешь также посмотреть полный каталог в <a href="#" onclick="show('library');return false;" class="text-indigo-600 hover:underline">🧰 Библиотеке</a>.`);
+    }, 700);
+    return;
+  }
+
+  const tools = ids.map(id => libraryTools.find(t => t.id === id)).filter(Boolean).slice(0, 4);
+  const cards = tools.map(t => {
+    const kindLabel = t.type === 'skill'
+      ? '<span class="text-xs px-2 py-0.5 rounded bg-violet-100 text-violet-700">✨ навык</span>'
+      : '<span class="text-xs px-2 py-0.5 rounded bg-cyan-100 text-cyan-700">🛠 инструмент</span>';
+    const cta = t.type === 'skill'
+      ? `<button onclick="activateSkill('${t.id}')" class="text-xs px-3 py-1 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-medium">💬 Запустить в чате</button>`
+      : `<button onclick="openTool('${t.id}')" class="text-xs px-3 py-1 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-medium">🛠 Открыть инструмент</button>`;
+    return `
+      <div class="bg-white border border-slate-200 rounded-lg p-3 hover:border-indigo-300 transition">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-xs text-slate-500">${t.typeLabel}</span>
+          ${kindLabel}
+        </div>
+        <div class="font-medium text-sm mb-1">${t.title}</div>
+        ${t.description ? `<div class="text-xs text-slate-500 mb-2 leading-relaxed">${t.description}</div>` : '<div class="mb-2"></div>'}
+        <div class="flex justify-end">${cta}</div>
+      </div>
+    `;
+  }).join('');
+
+  setTimeout(() => {
+    chatAddAi(`
+      Нашёл <strong>${tools.length}</strong> ${tools.length === 1 ? 'подходящий вариант' : tools.length < 5 ? 'подходящих варианта' : 'подходящих вариантов'}:
+      <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">${cards}</div>
+      <div class="mt-3 text-xs text-slate-500">Выбери что подходит — навык откроется тут же в чате, инструмент — со своим интерфейсом.</div>
+    `);
+  }, 700);
+}
+
+function chatSend() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  chatAddUser(text);
+  input.value = '';
+  chatRespond(text);
+}
+
+function chatExample(text) {
+  document.getElementById('chatInput').value = text;
+  chatSend();
+}
+
+function activateSkill(id) {
+  const t = libraryTools.find(x => x.id === id);
+  if (!t) return;
+  activeSkill = t;
+  show('chat');
+  document.getElementById('chatSkillContext').classList.remove('hidden');
+  document.getElementById('chatSkillContext').classList.add('flex');
+  document.getElementById('chatSkillName').textContent = t.title;
+  document.getElementById('chatExamples').classList.add('hidden');
+
+  // Сбрасываем тред и приветствие — теперь это скилл-режим
+  const thread = document.getElementById('chatThread');
+  thread.innerHTML = '';
+  chatAddAi(`
+    <div class="text-xs font-medium text-violet-700 uppercase tracking-wide mb-1.5">✨ Активирован скилл</div>
+    <div class="font-semibold mb-1">${t.title}</div>
+    ${t.description ? `<div class="text-xs text-slate-600 mb-3">${t.description}</div>` : ''}
+    <div class="text-xs text-slate-500 border-t border-slate-200 pt-2">
+      <strong>Что прислать:</strong> ${t.inputs}
+      <br>
+      <strong>Что получишь:</strong> ${t.outputs}
+    </div>
+    <div class="mt-2 text-sm">Готов помочь — пришли вход или задай уточняющий вопрос.</div>
+  `);
+}
+
+function exitSkill() {
+  activeSkill = null;
+  document.getElementById('chatSkillContext').classList.add('hidden');
+  document.getElementById('chatSkillContext').classList.remove('flex');
+  document.getElementById('chatExamples').classList.remove('hidden');
+  chatGreet();
+}
+
+// ── Tool view (заглушка для инструментов из библиотеки) ──────────────────
+function openTool(id) {
+  const t = libraryTools.find(x => x.id === id);
+  if (!t) return;
+
+  document.getElementById('toolType').textContent = t.typeLabel;
+  document.getElementById('toolTitle').textContent = t.title;
+  document.getElementById('toolDesc').textContent = t.description || '';
+
+  // Подобие UX в зависимости от типа
+  const body = document.getElementById('toolBody');
+  if (t.type === 'monitor') {
+    body.innerHTML = `
+      <div class="space-y-4">
+        <div class="grid grid-cols-3 gap-3">
+          <div class="bg-slate-50 rounded p-3"><div class="text-xs text-slate-500 uppercase">Упоминаний за сутки</div><div class="text-xl font-semibold mt-1">42</div></div>
+          <div class="bg-slate-50 rounded p-3"><div class="text-xs text-slate-500 uppercase">Тональность</div><div class="text-xl font-semibold mt-1 text-emerald-600">+0.31</div></div>
+          <div class="bg-slate-50 rounded p-3"><div class="text-xs text-slate-500 uppercase">Алертов</div><div class="text-xl font-semibold mt-1">2</div></div>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold mb-2">Настройки</h3>
+          <div class="bg-slate-50 rounded p-3 text-sm text-slate-600">
+            ${t.inputs}
+            ${t.schedule ? `<div class="mt-1 text-xs text-slate-400">⏱ ${t.schedule}</div>` : ''}
+          </div>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold mb-2">Последние события</h3>
+          <ul class="space-y-1 text-sm">
+            <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>10 мин назад — упоминание в @medach (нейтрально)</li>
+            <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>1 ч назад — негативный пост в @varlamov_news (alert)</li>
+            <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>3 ч назад — публикация на Хабре (позитив)</li>
+          </ul>
+        </div>
+        <div class="text-xs text-slate-400 pt-3 border-t border-slate-100">Это упрощённая заглушка интерфейса инструмента. В реальном продукте здесь будет полноценный дашборд под задачу.</div>
+      </div>
+    `;
+  } else { // analytics
+    body.innerHTML = `
+      <div class="space-y-4">
+        <div>
+          <label class="text-xs font-medium text-slate-600 uppercase tracking-wide">Вход</label>
+          <div class="text-sm text-slate-500 mb-2">${t.inputs}</div>
+          <input type="text" placeholder="Вставь сюда..." class="w-full px-3 py-2 border border-slate-200 rounded-md text-sm">
+        </div>
+        <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">▶ Запустить анализ</button>
+        <div class="bg-slate-50 rounded p-3 text-sm">
+          <div class="text-xs text-slate-500 uppercase mb-1">Что получишь</div>
+          <div>${t.outputs}</div>
+        </div>
+        <div class="text-xs text-slate-400 pt-3 border-t border-slate-100">Это упрощённая заглушка интерфейса инструмента. В реальном продукте здесь будет полноценный UX под задачу.</div>
+      </div>
+    `;
+  }
+
+  show('tool');
+}
+
 function openLibTool(id) {
   const t = libraryTools.find(x => x.id === id);
   if (!t) return;
@@ -1136,9 +1426,9 @@ function openLibTool(id) {
         <div><span class="text-slate-500">Автор:</span> <span class="text-slate-700">Иван Иванов (Портал)</span></div>
         ${t.schedule ? `<div><span class="text-slate-500">Расписание:</span> <span class="text-slate-700">${t.schedule}</span></div>` : ''}
       </div>
-      <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">
-        ▶ Запустить
-      </button>
+      ${t.type === 'skill'
+        ? `<button onclick="activateSkill('${t.id}'); closeProfile();" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">💬 Запустить в чате</button>`
+        : `<button onclick="openTool('${t.id}'); closeProfile();" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">🛠 Открыть инструмент</button>`}
     </div>
   `;
   document.getElementById('profileTitle').textContent = t.title;
