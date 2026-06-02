@@ -1080,20 +1080,12 @@ function renderLibrary() {
     })
     .sort((a, b) => priorityIdx(a.id) - priorityIdx(b.id));
 
-  const statusBadge = (s) => {
-    if (s === 'ready')   return '<span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">🟢 готов</span>';
-    if (s === 'beta')    return '<span class="text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-700">🟡 бета</span>';
-    if (s === 'planned') return '<span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-500">⚪ в планах</span>';
-    return '';
-  };
-
   grid.innerHTML = filtered.length === 0
     ? '<div class="col-span-3 bg-white border border-slate-200 rounded-lg p-12 text-center text-slate-400 text-sm">Ничего не найдено</div>'
     : filtered.map(t => `
       <div onclick="openLibTool('${t.id}')" class="bg-white rounded-lg border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm cursor-pointer transition-all fade-in">
-        <div class="flex items-start justify-between mb-2">
+        <div class="mb-2">
           <span class="text-xs text-slate-500">${t.typeLabel}</span>
-          ${statusBadge(t.status)}
         </div>
         <h3 class="font-semibold text-sm mb-2 leading-snug">${t.title}</h3>
         <p class="text-xs text-slate-600 leading-relaxed mb-3 line-clamp-3">${t.description}</p>
@@ -1148,8 +1140,8 @@ function openLibTool(id) {
         <div><span class="text-slate-500">Автор:</span> <span class="text-slate-700">${t.author}</span></div>
         ${t.schedule ? `<div><span class="text-slate-500">Расписание:</span> <span class="text-slate-700">${t.schedule}</span></div>` : ''}
       </div>
-      <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium ${t.status === 'planned' ? 'opacity-50 cursor-not-allowed' : ''}" ${t.status === 'planned' ? 'disabled' : ''}>
-        ${t.status === 'planned' ? 'В разработке' : '▶ Запустить'}
+      <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+        ▶ Запустить
       </button>
     </div>
   `;
